@@ -23,6 +23,9 @@ const envSchema = z.object({
   // GitHub Webhooks
   GITHUB_WEBHOOK_SECRET: z.string().optional(),
 
+  // GitHub API (used by src/features/github/services/github.service.ts)
+  GITHUB_TOKEN: z.string().min(1, "GitHub token is required"),
+
   // Logging & Env
   LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),

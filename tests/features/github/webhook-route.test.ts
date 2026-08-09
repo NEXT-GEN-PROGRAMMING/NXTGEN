@@ -17,33 +17,12 @@ vi.mock("@/core/logger.js", () => ({
   },
 }));
 
-vi.mock("@/core/database.js", () => ({
-  db: {
-    insert: vi.fn().mockReturnValue({
-      values: vi.fn().mockReturnValue({
-        onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
-      }),
-    }),
-    select: vi.fn().mockReturnValue({
-      from: vi.fn().mockResolvedValue([]),
-    }),
-  },
-}));
-
-vi.mock("@/core/bot.js", () => ({
-  client: {
-    channels: {
-      fetch: vi.fn(),
-    },
-  },
-}));
-
-vi.mock("@/features/github/schema.js", () => ({
-  githubPullRequests: { prNumber: "pr_number", repoFullName: "repo_full_name" },
-  githubWebhookConfigs: {},
+vi.mock("@/features/github/queue.js", () => ({
+  enqueueGitHubEvent: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { app } from "@/core/server.js";
+import { enqueueGitHubEvent } from "@/features/github/queue.js";
 
 /** Helper to generate a valid HMAC signature */
 function sign(payload: string): string {
@@ -156,23 +135,29 @@ describe("GitHub Webhook Route", () => {
   });
 
   describe("Pull Request Events", () => {
-    it("should return 200 for a valid opened PR event", async () => {
+    it("should return 200 and enqueue a valid opened PR event", async () => {
       const payload = mockPRPayload();
       const res = await sendWebhook(payload);
 
       expect(res.status).toBe(200);
       const body = (await res.json()) as { error?: string; message?: string };
-      expect(body.message).toBe("Processed successfully");
+      expect(body.message).toBe("Queued successfully");
+      expect(enqueueGitHubEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ action: "opened", number: 42 }),
+      );
     });
 
-    it("should return 200 for a valid closed PR event", async () => {
+    it("should return 200 and enqueue a valid closed PR event", async () => {
       const payload = mockPRPayload({ action: "closed" });
       const res = await sendWebhook(payload);
 
       expect(res.status).toBe(200);
+      expect(enqueueGitHubEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ action: "closed" }),
+      );
     });
 
-    it("should return 200 for a labeled PR event", async () => {
+    it("should return 200 and enqueue a labeled PR event", async () => {
       const payload = mockPRPayload({
         action: "labeled",
         label: { name: "bug" },
@@ -180,9 +165,12 @@ describe("GitHub Webhook Route", () => {
       const res = await sendWebhook(payload);
 
       expect(res.status).toBe(200);
+      expect(enqueueGitHubEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ action: "labeled" }),
+      );
     });
 
-    it("should return 200 for a review_requested PR event", async () => {
+    it("should return 200 and enqueue a review_requested PR event", async () => {
       const payload = mockPRPayload({
         action: "review_requested",
         requested_reviewer: { login: "reviewer" },
@@ -190,15 +178,19 @@ describe("GitHub Webhook Route", () => {
       const res = await sendWebhook(payload);
 
       expect(res.status).toBe(200);
+      expect(enqueueGitHubEvent).toHaveBeenCalledWith(
+        expect.objectContaining({ action: "review_requested" }),
+      );
     });
 
-    it("should return 400 for unsupported PR actions", async () => {
+    it("should not enqueue unsupported PR actions", async () => {
       const payload = mockPRPayload({ action: "edited" });
       const res = await sendWebhook(payload);
 
       expect(res.status).toBe(400);
       const body = (await res.json()) as { error?: string; message?: string };
       expect(body.error).toBe("Unsupported action");
+      expect(enqueueGitHubEvent).not.toHaveBeenCalled();
     });
   });
 });

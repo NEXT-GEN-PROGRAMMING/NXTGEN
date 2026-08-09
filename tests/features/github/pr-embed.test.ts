@@ -252,4 +252,77 @@ describe("PR Embed Builders", () => {
       expect(json.description).not.toContain("+127");
     });
   });
+
+  describe("Enrichment Fields", () => {
+    it("should include checks summary with mixed results", () => {
+      const embed = createPROpenedEmbed(
+        mockPRData({ checkSummary: { total: 3, succeeded: 2, failed: 1, pending: 0 } }),
+      );
+      const json = embed.toJSON();
+
+      expect(json.fields).toContainEqual(
+        expect.objectContaining({
+          name: "Checks",
+          value: "✅ `2/3` checks passed · ❌ `1` failed",
+          inline: true,
+        }),
+      );
+    });
+
+    it("should show pending checks in the summary", () => {
+      const embed = createPROpenedEmbed(
+        mockPRData({ checkSummary: { total: 2, succeeded: 0, failed: 0, pending: 2 } }),
+      );
+      const json = embed.toJSON();
+
+      expect(json.fields).toContainEqual(
+        expect.objectContaining({ name: "Checks", value: "⏳ `2` pending" }),
+      );
+    });
+
+    it("should omit checks field when there are no checks", () => {
+      const embed = createPROpenedEmbed(
+        mockPRData({ checkSummary: { total: 0, succeeded: 0, failed: 0, pending: 0 } }),
+      );
+      const json = embed.toJSON();
+
+      expect(json.fields?.some((field) => field.name === "Checks")).toBe(false);
+    });
+
+    it("should include review summary with all states", () => {
+      const embed = createPROpenedEmbed(
+        mockPRData({
+          reviewSummary: { total: 3, approved: 1, changesRequested: 1, commented: 1 },
+        }),
+      );
+      const json = embed.toJSON();
+
+      expect(json.fields).toContainEqual(
+        expect.objectContaining({
+          name: "Reviews",
+          value: "✅ `1` approved · 🚧 `1` changes requested · 💬 `1` commented",
+          inline: true,
+        }),
+      );
+    });
+
+    it("should omit reviews field with no reviews", () => {
+      const embed = createPROpenedEmbed(
+        mockPRData({ reviewSummary: { total: 0, approved: 0, changesRequested: 0, commented: 0 } }),
+      );
+      const json = embed.toJSON();
+
+      expect(json.fields?.some((field) => field.name === "Reviews")).toBe(false);
+    });
+
+    it("should keep description field before enrichment fields", () => {
+      const embed = createPROpenedEmbed(
+        mockPRData({ checkSummary: { total: 1, succeeded: 1, failed: 0, pending: 0 } }),
+      );
+      const json = embed.toJSON();
+
+      expect(json.fields?.[0]?.name).toBe("Description");
+      expect(json.fields?.[1]?.name).toBe("Checks");
+    });
+  });
 });

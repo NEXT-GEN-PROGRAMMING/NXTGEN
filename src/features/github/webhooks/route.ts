@@ -1,9 +1,11 @@
 import { Hono } from "hono";
 import { logger } from "@/core/logger.js";
-import { handlePullRequestEvent } from "@/features/github/services/pr-handler.js";
+import { enqueueGitHubEvent } from "@/features/github/queue.js";
 import { verifyGitHubSignature } from "@/features/github/webhooks/verify.js";
 
 export const githubWebhookRoute = new Hono();
+
+const SUPPORTED_ACTIONS = ["opened", "closed", "labeled", "review_requested"];
 
 githubWebhookRoute.post("/", async (c) => {
   const signature = c.req.header("x-hub-signature-256");
@@ -33,14 +35,14 @@ githubWebhookRoute.post("/", async (c) => {
     const payload = JSON.parse(payloadStr);
     const action = payload.action;
 
-    if (["opened", "closed", "labeled", "review_requested"].includes(action)) {
-      await handlePullRequestEvent(payload);
-      return c.json({ message: "Processed successfully" }, 200);
-    } else {
+    if (!SUPPORTED_ACTIONS.includes(action)) {
       return c.json({ error: "Unsupported action" }, 400);
     }
+
+    await enqueueGitHubEvent(payload);
+    return c.json({ message: "Queued successfully" }, 200);
   } catch (error) {
-    logger.error({ err: error }, "Failed to process webhook");
+    logger.error({ err: error }, "Failed to enqueue webhook");
     return c.json({ error: "Processing error" }, 500);
   }
 });

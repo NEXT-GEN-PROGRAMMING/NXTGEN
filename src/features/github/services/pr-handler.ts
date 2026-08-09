@@ -11,6 +11,20 @@ import {
   type PREventData,
 } from "@/features/github/embeds/pr-embed.js";
 import { githubPullRequests, githubWebhookConfigs } from "@/features/github/schema.js";
+import {
+  type CheckRunSummary,
+  GitHubService,
+  type PullRequestDetails,
+  type ReviewSummary,
+} from "@/features/github/services/github.service.js";
+
+const githubService = () => new GitHubService();
+
+interface EnrichedPRData {
+  details: PullRequestDetails;
+  checks: CheckRunSummary;
+  reviews: ReviewSummary;
+}
 
 export interface GitHubPRWebhookPayload {
   action: string;
@@ -59,6 +73,29 @@ export interface GitHubPRWebhookPayload {
   };
 }
 
+// ponytail: enrichment is best-effort — the webhook payload already has enough to ship the embed,
+// so an Octokit failure (rate limit, missing perms) logs and falls back to raw webhook data
+async function enrichPullRequest(
+  owner: string,
+  repo: string,
+  event: GitHubPRWebhookPayload,
+): Promise<EnrichedPRData | null> {
+  try {
+    const [details, checks, reviews] = await Promise.all([
+      githubService().getPullRequest(owner, repo, event.number),
+      githubService().getCheckRuns(owner, repo, event.pull_request.head.sha),
+      githubService().getReviews(owner, repo, event.number),
+    ]);
+    return { details, checks, reviews };
+  } catch (error) {
+    logger.warn(
+      { err: error, pr: event.number, repo: event.repository.full_name },
+      "GitHub enrichment failed, using raw webhook data",
+    );
+    return null;
+  }
+}
+
 export async function handlePullRequestEvent(event: GitHubPRWebhookPayload): Promise<void> {
   logger.info(
     { action: event.action, pr: event.number, repo: event.repository.full_name },
@@ -66,27 +103,32 @@ export async function handlePullRequestEvent(event: GitHubPRWebhookPayload): Pro
   );
 
   const pr = event.pull_request;
+  const [owner, repo] = event.repository.full_name.split("/");
+  const enrichment = await enrichPullRequest(owner, repo, event);
+  const merged = enrichment?.details.merged ?? pr.merged;
 
   const prData: PREventData = {
     prNumber: event.number,
-    title: pr.title,
+    title: enrichment?.details.title ?? pr.title,
     repoFullName: event.repository.full_name,
     url: pr.html_url,
     authorLogin: pr.user.login,
     authorAvatarUrl: pr.user.avatar_url,
     senderLogin: event.sender.login,
     senderAvatarUrl: event.sender.avatar_url,
-    headBranch: pr.head.ref,
-    baseBranch: pr.base.ref,
-    headSha: pr.head.sha,
-    commitCount: pr.commits,
-    additions: pr.additions,
-    deletions: pr.deletions,
-    changedFiles: pr.changed_files,
-    draft: pr.draft,
-    body: pr.body,
-    mergeCommitSha: pr.merge_commit_sha,
-    mergedByLogin: pr.merged_by?.login ?? null,
+    headBranch: enrichment?.details.headRef ?? pr.head.ref,
+    baseBranch: enrichment?.details.baseRef ?? pr.base.ref,
+    headSha: enrichment?.details.headSha ?? pr.head.sha,
+    commitCount: enrichment?.details.commits ?? pr.commits,
+    additions: enrichment?.details.additions ?? pr.additions,
+    deletions: enrichment?.details.deletions ?? pr.deletions,
+    changedFiles: enrichment?.details.changedFiles ?? pr.changed_files,
+    draft: enrichment?.details.draft ?? pr.draft,
+    body: enrichment?.details.body ?? pr.body,
+    mergeCommitSha: enrichment?.details.mergeCommitSha ?? pr.merge_commit_sha,
+    mergedByLogin: enrichment?.details.mergedByLogin ?? pr.merged_by?.login ?? null,
+    checkSummary: enrichment?.checks,
+    reviewSummary: enrichment?.reviews,
   };
 
   try {
@@ -98,7 +140,7 @@ export async function handlePullRequestEvent(event: GitHubPRWebhookPayload): Pro
         title: prData.title,
         authorLogin: prData.authorLogin,
         authorAvatarUrl: prData.authorAvatarUrl,
-        state: pr.state,
+        state: enrichment?.details.state ?? pr.state,
         url: prData.url,
       })
       .onConflictDoUpdate({
@@ -107,7 +149,7 @@ export async function handlePullRequestEvent(event: GitHubPRWebhookPayload): Pro
           title: prData.title,
           authorLogin: prData.authorLogin,
           authorAvatarUrl: prData.authorAvatarUrl,
-          state: pr.state,
+          state: enrichment?.details.state ?? pr.state,
           url: prData.url,
           updatedAt: new Date(),
         },
@@ -124,7 +166,7 @@ export async function handlePullRequestEvent(event: GitHubPRWebhookPayload): Pro
       embed = createPROpenedEmbed(prData);
       break;
     case "closed":
-      if (pr.merged) {
+      if (merged) {
         embed = createPRMergedEmbed(prData);
       } else {
         embed = createPRClosedEmbed(prData);

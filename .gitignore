@@ -39,6 +39,9 @@ coverage/
 .env.production.local
 *.env
 
+# Local docker compose overrides
+compose.override.yaml
+
 # OS / Editor
 .DS_Store
 .vscode/

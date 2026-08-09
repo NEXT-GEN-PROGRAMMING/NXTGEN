@@ -1,4 +1,5 @@
 import { EmbedBuilder } from "discord.js";
+import type { CheckRunSummary, ReviewSummary } from "@/features/github/services/github.service.js";
 
 export interface PREventData {
   prNumber: number;
@@ -20,6 +21,8 @@ export interface PREventData {
   body: string | null;
   mergeCommitSha: string | null;
   mergedByLogin: string | null;
+  checkSummary?: CheckRunSummary;
+  reviewSummary?: ReviewSummary;
 }
 
 /** Truncate PR body to a short preview */
@@ -40,6 +43,31 @@ function statsLine(data: PREventData): string {
   return `\`+${data.additions} -${data.deletions}\` across ${data.changedFiles} file${data.changedFiles === 1 ? "" : "s"}`;
 }
 
+/** Format CI check status line */
+function checksLine(data: PREventData): string | null {
+  const checks = data.checkSummary;
+  if (!checks || checks.total === 0) return null;
+
+  const parts: string[] = [];
+  if (checks.succeeded > 0) parts.push(`✅ \`${checks.succeeded}/${checks.total}\` checks passed`);
+  if (checks.pending > 0) parts.push(`⏳ \`${checks.pending}\` pending`);
+  if (checks.failed > 0) parts.push(`❌ \`${checks.failed}\` failed`);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+/** Format review summary line */
+function reviewsLine(data: PREventData): string | null {
+  const reviews = data.reviewSummary;
+  if (!reviews || reviews.total === 0) return null;
+
+  const parts: string[] = [];
+  if (reviews.approved > 0) parts.push(`✅ \`${reviews.approved}\` approved`);
+  if (reviews.changesRequested > 0)
+    parts.push(`🚧 \`${reviews.changesRequested}\` changes requested`);
+  if (reviews.commented > 0) parts.push(`💬 \`${reviews.commented}\` commented`);
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 /** Build the base embed with shared fields */
 function baseEmbed(data: PREventData, color: number): EmbedBuilder {
   const embed = new EmbedBuilder()
@@ -52,6 +80,16 @@ function baseEmbed(data: PREventData, color: number): EmbedBuilder {
   const preview = bodyPreview(data.body);
   if (preview) {
     embed.addFields({ name: "Description", value: preview });
+  }
+
+  const checkLine = checksLine(data);
+  if (checkLine) {
+    embed.addFields({ name: "Checks", value: checkLine, inline: true });
+  }
+
+  const reviewLine = reviewsLine(data);
+  if (reviewLine) {
+    embed.addFields({ name: "Reviews", value: reviewLine, inline: true });
   }
 
   return embed;

@@ -62,8 +62,6 @@ flowchart TD
 2. `HMAC-SHA256` signature verification works perfectly.
 3. Drizzle ORM persists the state to PostgreSQL.
 4. Rich embeds are built and sent to the correct Discord channels.
-
-❌ **Missing (The BullMQ & Octokit Architecture):**
-1. **BullMQ Queue:** Right now, our Hono route processes the webhook synchronously. If Discord is slow or down, the webhook fails. We are supposed to just throw the payload into a Redis BullMQ queue and return 200 OK to GitHub instantly.
-2. **BullMQ Worker:** We need `src/features/github/workers/pr.worker.ts` to process the jobs in the background.
-3. **Octokit Enrichment:** We are currently just using the raw data GitHub sends in the webhook. We haven't implemented `GitHubService` with Octokit to fetch extra data like CI check statuses (Actions passing/failing) or full review histories.
+5. **BullMQ Queue:** The route (`src/features/github/webhooks/route.ts`) verifies the signature, enqueues the payload into a Redis-backed BullMQ queue (`src/features/github/queue.ts`), and returns `200` to GitHub instantly.
+6. **BullMQ Worker:** `src/features/github/workers/pr.worker.ts` picks up jobs asynchronously (3 attempts, exponential backoff) and processes them via `src/features/github/services/pr-handler.ts`.
+7. **Octokit Enrichment:** `GitHubService` (`src/features/github/services/github.service.ts`) fetches fresh PR details (`pulls.get`), CI check statuses (`checks.listForRef`), and review history (`pulls.listReviews`). Enrichment is best-effort — on API failure the worker falls back to the raw webhook payload.

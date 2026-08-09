@@ -4,6 +4,7 @@ import { connectDatabase } from "@/core/database.js";
 import { logger } from "@/core/logger.js";
 import { connectRedis } from "@/core/redis.js";
 import { startServer } from "@/core/server.js";
+import { startPRWorker } from "@/features/github/workers/pr.worker.js";
 
 async function bootstrap() {
   logger.info("🚀 Starting NxtGen bot...");
@@ -14,6 +15,9 @@ async function bootstrap() {
 
   // Start Hono Webhook Server
   startServer();
+
+  // Start BullMQ worker for async GitHub webhook processing
+  startPRWorker();
 
   // Register slash commands with Discord API
   await registerCommands();
