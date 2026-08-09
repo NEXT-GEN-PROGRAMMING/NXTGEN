@@ -29,7 +29,7 @@ jobs:
           # Conventional Commits pattern:
           #   type(scope): description
           #   type: description
-          PATTERN="^(feat|fix|docs|style|refactor|test|chore|perf|ci|revert)(\((client|server|db|docker|deps|config)\))?: .{3,}$"
+          PATTERN="^(feat|fix|docs|style|refactor|test|chore|perf|ci|revert)(\((github|discord|api|db|queue|config|docker|deps)\))?: .{3,}$"
 
           if [[ ! "$TITLE" =~ $PATTERN ]]; then
             echo "[!!!] PR title does not follow Conventional Commits format."
@@ -38,11 +38,11 @@ jobs:
             echo "  type(scope): description"
             echo ""
             echo "Valid types: feat, fix, docs, style, refactor, test, chore, perf, ci, revert"
-            echo "Valid scopes: client, server, db, docker, deps, config"
+            echo "Valid scopes: github, discord, api, db, queue, config, docker, deps"
             echo ""
             echo "Examples:"
-            echo "  feat(client): add member profile cards"
-            echo "  fix(server): resolve auth middleware race condition"
+            echo "  feat(github): add PR review status to embeds"
+            echo "  fix(api): validate webhook signature before parsing body"
             echo "  docs: update contributing guide"
             echo ""
             echo "Your title: \"$TITLE\""
