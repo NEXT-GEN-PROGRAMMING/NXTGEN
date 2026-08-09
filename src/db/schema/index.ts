@@ -6,3 +6,5 @@ export const users = pgTable("users", {
   discordId: text("discord_id").notNull().unique(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export * from "@/features/github/schema.js";

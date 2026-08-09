@@ -1,3 +1,4 @@
+import { registerCommands } from "@/commands/handler.js";
 import { startBot } from "@/core/bot.js";
 import { connectDatabase } from "@/core/database.js";
 import { logger } from "@/core/logger.js";
@@ -14,11 +15,11 @@ async function bootstrap() {
   // Start Hono Webhook Server
   startServer();
 
+  // Register slash commands with Discord API
+  await registerCommands();
+
   // Start Discord Bot
   await startBot();
-
-  // NOTE: In the future, BullMQ workers and Discord slash command
-  // registration will be initialized here as well.
 }
 
 bootstrap().catch((err) => {
