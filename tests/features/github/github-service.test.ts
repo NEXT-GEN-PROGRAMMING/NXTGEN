@@ -16,7 +16,6 @@ import { GitHubService } from "@/features/github/services/github.service.js";
 interface MockOctokitInstance {
   rest: {
     pulls: {
-      get: ReturnType<typeof vi.fn>;
       listReviews: ReturnType<typeof vi.fn>;
     };
     checks: {
@@ -29,7 +28,6 @@ function createMockOctokit(): MockOctokitInstance {
   return {
     rest: {
       pulls: {
-        get: vi.fn(),
         listReviews: vi.fn(),
       },
       checks: {
@@ -114,78 +112,6 @@ describe("GitHubService", () => {
         pull_number: 42,
       });
       expect(summary).toEqual({ total: 6, approved: 2, changesRequested: 1, commented: 1 });
-    });
-  });
-
-  describe("getPullRequest", () => {
-    it("should map fresh PR details, defaulting missing numbers", async () => {
-      octokit.rest.pulls.get.mockResolvedValue({
-        data: {
-          title: "Fresh title",
-          body: null,
-          state: "open",
-          draft: false,
-          merged: false,
-          merge_commit_sha: null,
-          merged_by: null,
-          head: { sha: "sha-123", ref: "feat/x" },
-          base: { ref: "main" },
-          additions: null,
-          deletions: 20,
-          changed_files: 4,
-          commits: 10,
-        },
-      });
-
-      const details = await service.getPullRequest("owner", "repo", 42);
-
-      expect(octokit.rest.pulls.get).toHaveBeenCalledWith({
-        owner: "owner",
-        repo: "repo",
-        pull_number: 42,
-      });
-      expect(details).toEqual({
-        title: "Fresh title",
-        body: null,
-        state: "open",
-        draft: false,
-        merged: false,
-        mergeCommitSha: null,
-        mergedByLogin: null,
-        headSha: "sha-123",
-        headRef: "feat/x",
-        baseRef: "main",
-        additions: 0,
-        deletions: 20,
-        changedFiles: 4,
-        commits: 10,
-      });
-    });
-
-    it("should map merge info when present", async () => {
-      octokit.rest.pulls.get.mockResolvedValue({
-        data: {
-          title: "T",
-          body: "body",
-          state: "closed",
-          draft: false,
-          merged: true,
-          merge_commit_sha: "abc1234",
-          merged_by: { login: "maintainer" },
-          head: { sha: "s", ref: "r" },
-          base: { ref: "main" },
-          additions: 1,
-          deletions: 1,
-          changed_files: 1,
-          commits: 1,
-        },
-      });
-
-      const details = await service.getPullRequest("owner", "repo", 42);
-
-      expect(details.merged).toBe(true);
-      expect(details.mergeCommitSha).toBe("abc1234");
-      expect(details.mergedByLogin).toBe("maintainer");
     });
   });
 });

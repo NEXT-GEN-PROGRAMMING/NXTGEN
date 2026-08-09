@@ -64,4 +64,4 @@ flowchart TD
 4. Rich embeds are built and sent to the correct Discord channels.
 5. **BullMQ Queue:** The route (`src/features/github/webhooks/route.ts`) verifies the signature, enqueues the payload into a Redis-backed BullMQ queue (`src/features/github/queue.ts`), and returns `200` to GitHub instantly.
 6. **BullMQ Worker:** `src/features/github/workers/pr.worker.ts` picks up jobs asynchronously (3 attempts, exponential backoff) and processes them via `src/features/github/services/pr-handler.ts`.
-7. **Octokit Enrichment:** `GitHubService` (`src/features/github/services/github.service.ts`) fetches fresh PR details (`pulls.get`), CI check statuses (`checks.listForRef`), and review history (`pulls.listReviews`). Enrichment is best-effort — on API failure the worker falls back to the raw webhook payload.
+7. **Octokit Enrichment:** `GitHubService` (`src/features/github/services/github.service.ts`) fetches CI check statuses (`checks.listForRef`) and review history (`pulls.listReviews`) to enrich the webhook payload. Enrichment is best-effort — on API failure the worker falls back to the raw webhook payload.

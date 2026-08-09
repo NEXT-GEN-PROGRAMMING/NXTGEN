@@ -7,7 +7,7 @@ import {
   handlePullRequestEvent,
 } from "@/features/github/services/pr-handler.js";
 
-export function startPRWorker(): Worker<GitHubPRWebhookPayload> {
+export function startPRWorker(): void {
   const worker = new Worker<GitHubPRWebhookPayload>(
     GITHUB_PR_QUEUE_NAME,
     async (job) => {
@@ -23,6 +23,4 @@ export function startPRWorker(): Worker<GitHubPRWebhookPayload> {
   worker.on("failed", (job, err) => {
     logger.error({ err, jobId: job?.id }, "PR webhook job failed");
   });
-
-  return worker;
 }

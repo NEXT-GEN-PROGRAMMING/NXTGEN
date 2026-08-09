@@ -4,7 +4,7 @@ import type { GitHubPRWebhookPayload } from "@/features/github/services/pr-handl
 
 export const GITHUB_PR_QUEUE_NAME = "github-pr-events";
 
-export const githubPRQueue = new Queue<GitHubPRWebhookPayload>(GITHUB_PR_QUEUE_NAME, {
+const githubPRQueue = new Queue<GitHubPRWebhookPayload>(GITHUB_PR_QUEUE_NAME, {
   connection: redis,
 });
 

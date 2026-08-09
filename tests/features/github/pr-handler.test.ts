@@ -53,14 +53,12 @@ import {
 } from "@/features/github/services/pr-handler.js";
 
 interface MockGitHubService {
-  getPullRequest: ReturnType<typeof vi.fn>;
   getCheckRuns: ReturnType<typeof vi.fn>;
   getReviews: ReturnType<typeof vi.fn>;
 }
 
 function createMockGithubService(): MockGitHubService {
   return {
-    getPullRequest: vi.fn(),
     getCheckRuns: vi.fn(),
     getReviews: vi.fn(),
   };
@@ -95,23 +93,6 @@ function mockPRPayload(overrides: Record<string, unknown> = {}): Record<string, 
   };
 }
 
-const enrichedDetails = {
-  title: "Fresh API title",
-  body: "Fresh API body",
-  state: "open",
-  draft: false,
-  merged: false,
-  mergeCommitSha: null,
-  mergedByLogin: null,
-  headSha: "api-sha-456",
-  headRef: "feat/api",
-  baseRef: "main",
-  additions: 500,
-  deletions: 100,
-  changedFiles: 30,
-  commits: 20,
-};
-
 describe("handlePullRequestEvent", () => {
   let githubMock: MockGitHubService;
 
@@ -136,8 +117,7 @@ describe("handlePullRequestEvent", () => {
     return (channel.send.mock.calls[0][0] as { embeds: EmbedBuilder[] }).embeds[0];
   }
 
-  it("should prefer enriched PR details and include checks in the embed", async () => {
-    githubMock.getPullRequest.mockResolvedValue(enrichedDetails);
+  it("should include checks and reviews in the embed when enrichment succeeds", async () => {
     githubMock.getCheckRuns.mockResolvedValue({ total: 3, succeeded: 2, failed: 1, pending: 0 });
     githubMock.getReviews.mockResolvedValue({
       total: 1,
@@ -149,7 +129,7 @@ describe("handlePullRequestEvent", () => {
     await handlePullRequestEvent(payload());
 
     expect(dbInsertValues).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Fresh API title" }),
+      expect.objectContaining({ title: "Webhook title" }),
     );
 
     const fields = (await sentEmbed()).toJSON().fields ?? [];
@@ -163,7 +143,7 @@ describe("handlePullRequestEvent", () => {
   });
 
   it("should fall back to webhook data when enrichment fails", async () => {
-    githubMock.getPullRequest.mockRejectedValue(new Error("rate limited"));
+    githubMock.getCheckRuns.mockRejectedValue(new Error("rate limited"));
 
     await handlePullRequestEvent(payload());
 
