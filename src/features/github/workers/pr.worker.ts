@@ -23,4 +23,12 @@ export function startPRWorker(): void {
   worker.on("failed", (job, err) => {
     logger.error({ err, jobId: job?.id }, "PR webhook job failed");
   });
+
+  const shutdown = (signal: string): void => {
+    logger.info({ signal }, "Shutting down PR worker");
+    void worker.close().finally(() => process.exit(0));
+  };
+
+  process.once("SIGTERM", () => shutdown("SIGTERM"));
+  process.once("SIGINT", () => shutdown("SIGINT"));
 }

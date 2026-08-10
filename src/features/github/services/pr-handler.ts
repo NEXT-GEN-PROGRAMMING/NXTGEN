@@ -17,8 +17,6 @@ import {
   type ReviewSummary,
 } from "@/features/github/services/github.service.js";
 
-const githubService = () => new GitHubService();
-
 interface EnrichedPRData {
   checks: CheckRunSummary;
   reviews: ReviewSummary;
@@ -79,9 +77,10 @@ async function enrichPullRequest(
   event: GitHubPRWebhookPayload,
 ): Promise<EnrichedPRData | null> {
   try {
+    const service = new GitHubService();
     const [checks, reviews] = await Promise.all([
-      githubService().getCheckRuns(owner, repo, event.pull_request.head.sha),
-      githubService().getReviews(owner, repo, event.number),
+      service.getCheckRuns(owner, repo, event.pull_request.head.sha),
+      service.getReviews(owner, repo, event.number),
     ]);
     return { checks, reviews };
   } catch (error) {
