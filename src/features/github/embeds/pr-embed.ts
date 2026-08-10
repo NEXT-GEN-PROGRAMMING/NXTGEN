@@ -25,11 +25,51 @@ export interface PREventData {
   reviewSummary?: ReviewSummary;
 }
 
-/** Truncate PR body to a short preview */
-function bodyPreview(body: string | null): string {
-  if (!body || body.trim().length === 0) return "";
-  const clean = body.replace(/\r\n/g, "\n").split("\n")[0] ?? "";
-  return clean.length > 120 ? `${clean.slice(0, 120)}…` : clean;
+/** Discord limits: 1024 chars per field value, 6000 chars per embed */
+const MAX_FIELD_CHARS = 1024;
+const MAX_BODY_CHARS = 5000; // leaves room under the 6000 embed budget
+
+/** Render the full PR body as embed fields, chunked at Discord's per-field limit */
+function bodyFields(body: string | null): { name: string; value: string }[] {
+  if (!body || body.trim().length === 0) return [];
+
+  const chunks: string[] = [];
+  let current = "";
+
+  for (let line of body.replace(/\r\n/g, "\n").split("\n")) {
+    // Hard-slice any single line that alone exceeds the field limit
+    while (line.length > MAX_FIELD_CHARS) {
+      if (current) {
+        chunks.push(current);
+        current = "";
+      }
+      chunks.push(line.slice(0, MAX_FIELD_CHARS));
+      line = line.slice(MAX_FIELD_CHARS);
+    }
+
+    const next = current ? `${current}\n${line}` : line;
+    if (next.length > MAX_FIELD_CHARS) {
+      chunks.push(current);
+      current = line;
+    } else {
+      current = next;
+    }
+  }
+  if (current) chunks.push(current);
+
+  const fields: { name: string; value: string }[] = [];
+  let total = 0;
+  for (const chunk of chunks) {
+    const remaining = MAX_BODY_CHARS - total;
+    if (remaining <= 0) break;
+    const value = chunk.length > remaining ? `${chunk.slice(0, remaining - 1)}…` : chunk;
+    fields.push({
+      name: fields.length === 0 ? "Description" : `Description (part ${fields.length + 1})`,
+      value,
+    });
+    total += value.length;
+  }
+  return fields;
 }
 
 /** Format branch and commit info line */
@@ -77,9 +117,8 @@ function baseEmbed(data: PREventData, color: number): EmbedBuilder {
     .setFooter({ text: data.repoFullName })
     .setTimestamp();
 
-  const preview = bodyPreview(data.body);
-  if (preview) {
-    embed.addFields({ name: "Description", value: preview });
+  for (const field of bodyFields(data.body)) {
+    embed.addFields(field);
   }
 
   const checkLine = checksLine(data);

@@ -85,7 +85,7 @@ describe("PR Embed Builders", () => {
       expect(json.title).toBe("[DRAFT] [#42] Add webhook handler");
     });
 
-    it("should include body preview as a field", () => {
+    it("should include full body as a field", () => {
       const embed = createPROpenedEmbed(mockPRData());
       const json = embed.toJSON();
 
@@ -102,12 +102,38 @@ describe("PR Embed Builders", () => {
       expect(json.fields).toBeUndefined();
     });
 
-    it("should truncate long body text", () => {
-      const longBody = "A".repeat(200);
+    it("should chunk long multi-line body into multiple fields", () => {
+      const longBody = Array.from({ length: 100 }, (_, i) => `- [x] checkpoint ${i}`).join("\n");
       const embed = createPROpenedEmbed(mockPRData({ body: longBody }));
       const json = embed.toJSON();
 
-      expect(json.fields?.[0]?.value?.length).toBeLessThanOrEqual(121); // 120 + "…"
+      const fields = (json.fields ?? []).filter((f) => f.name.startsWith("Description"));
+
+      expect(fields.length).toBeGreaterThan(1);
+      expect(fields[0]?.name).toBe("Description");
+      expect(fields[1]?.name).toBe("Description (part 2)");
+      expect(fields.map((f) => f.value).join("\n")).toBe(longBody);
+      for (const field of fields) {
+        expect(field.value.length).toBeLessThanOrEqual(1024);
+      }
+    });
+
+    it("should cap total body chars at 5000", () => {
+      const embed = createPROpenedEmbed(mockPRData({ body: "x".repeat(10_000) }));
+      const json = embed.toJSON();
+
+      const fields = (json.fields ?? []).filter((f) => f.name.startsWith("Description"));
+      const total = fields.reduce((sum, f) => sum + f.value.length, 0);
+
+      expect(total).toBe(5000);
+      expect(fields.at(-1)?.value.endsWith("…")).toBe(true);
+    });
+
+    it("should normalize CRLF line endings", () => {
+      const embed = createPROpenedEmbed(mockPRData({ body: "line1\r\nline2\r\nline3" }));
+      const json = embed.toJSON();
+
+      expect(json.fields?.[0]?.value).toBe("line1\nline2\nline3");
     });
 
     it("should use singular 'file' for 1 changed file", () => {
