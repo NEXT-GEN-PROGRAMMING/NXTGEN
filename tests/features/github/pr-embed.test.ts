@@ -102,31 +102,161 @@ describe("PR Embed Builders", () => {
       expect(json.fields).toBeUndefined();
     });
 
-    it("should chunk long multi-line body into multiple fields", () => {
-      const longBody = Array.from({ length: 100 }, (_, i) => `- [x] checkpoint ${i}`).join("\n");
-      const embed = createPROpenedEmbed(mockPRData({ body: longBody }));
+    it("should strip template boilerplate and keep checked boxes and description", () => {
+      const body = [
+        "## Pull Request Checklist",
+        "",
+        "Before submitting your PR, please review the following checklist:",
+        "",
+        "- [x] **Title Convention**: My PR title follows the [Conventional Commits](https://www.conventionalcommits.org/) format.",
+        "- [ ] **Testing**: I have tested my changes locally.",
+        "- [ ] **Linting & Types**: I have run `pnpm check` and `pnpm typecheck`.",
+        "",
+        "## Description",
+        "",
+        "Please include a summary of the changes.",
+        "",
+        "Fixes # (issue)",
+        "",
+        "This PR adds the GitHub webhook handler for PR tracking.",
+        "",
+        "## Type of change",
+        "",
+        "- [x] Bug fix (non-breaking change which fixes an issue)",
+        "- [ ] Breaking change",
+      ].join("\n");
+      const embed = createPROpenedEmbed(mockPRData({ body }));
       const json = embed.toJSON();
+      const value = json.fields?.find((f) => f.name === "Description")?.value;
 
-      const fields = (json.fields ?? []).filter((f) => f.name.startsWith("Description"));
-
-      expect(fields.length).toBeGreaterThan(1);
-      expect(fields[0]?.name).toBe("Description");
-      expect(fields[1]?.name).toBe("Description (part 2)");
-      expect(fields.map((f) => f.value).join("\n")).toBe(longBody);
-      for (const field of fields) {
-        expect(field.value.length).toBeLessThanOrEqual(1024);
-      }
+      expect(value).toContain("- [x] **Title Convention**");
+      expect(value).toContain("- [x] Bug fix");
+      expect(value).toContain("## Description");
+      expect(value).toContain("This PR adds the GitHub webhook handler for PR tracking.");
+      expect(value).not.toContain("- [ ]");
+      expect(value).not.toContain("Before submitting your PR");
+      expect(value).not.toContain("Fixes # (issue)");
     });
 
-    it("should cap total body chars at 5000", () => {
-      const embed = createPROpenedEmbed(mockPRData({ body: "x".repeat(10_000) }));
+    it("should keep real issue links", () => {
+      const embed = createPROpenedEmbed(mockPRData({ body: "Fixes #123\n\nActual fix here." }));
       const json = embed.toJSON();
 
-      const fields = (json.fields ?? []).filter((f) => f.name.startsWith("Description"));
-      const total = fields.reduce((sum, f) => sum + f.value.length, 0);
+      expect(json.fields?.find((f) => f.name === "Description")?.value).toContain(
+        "Fixes #123\n\nActual fix here.",
+      );
+    });
 
-      expect(total).toBe(5000);
-      expect(fields.at(-1)?.value.endsWith("…")).toBe(true);
+    it("should truncate long bodies at 1024 chars with a READ MORE link", () => {
+      const embed = createPROpenedEmbed(mockPRData({ body: "x".repeat(1500) }));
+      const json = embed.toJSON();
+      const value = json.fields?.find((f) => f.name === "Description")?.value;
+
+      expect(value?.length).toBeLessThanOrEqual(1024);
+      expect(
+        value?.endsWith("… [READ MORE](https://github.com/NEXT-GEN-PROGRAMMING/NXTGEN/pull/42)"),
+      ).toBe(true);
+    });
+
+    it("should not append READ MORE when body fits the limit", () => {
+      const embed = createPROpenedEmbed(mockPRData());
+      const json = embed.toJSON();
+
+      expect(json.fields?.find((f) => f.name === "Description")?.value).not.toContain("READ MORE");
+    });
+
+    it("should omit Description field when body is only template boilerplate", () => {
+      const body = [
+        "## Pull Request Checklist",
+        "",
+        "Before submitting your PR, please review the following checklist:",
+        "",
+        "- [ ] **Testing**: I have tested my changes locally.",
+        "- [ ] **Linting & Types**: I have run `pnpm check` and `pnpm typecheck`.",
+        "",
+        "## Type of change",
+        "",
+        "- [ ] Bug fix (non-breaking change which fixes an issue)",
+        "- [ ] New feature (non-breaking change which adds functionality)",
+      ].join("\n");
+      const embed = createPROpenedEmbed(mockPRData({ body }));
+      const json = embed.toJSON();
+
+      expect(json.fields?.some((f) => f.name === "Description") ?? false).toBe(false);
+    });
+
+    it("should drop screenshot sections entirely, heading and content", () => {
+      const body = [
+        "## Description",
+        "",
+        "Adds the webhook handler.",
+        "",
+        "## Screenshots & Embeds (if applicable)",
+        "",
+        "If this PR includes changes to Discord embeds, messages, or UI components, please provide screenshots of how the bot looks in Discord.",
+        "",
+        "![Embed preview](https://example.com/embed.png)",
+        "",
+        "## Type of change",
+        "",
+        "- [x] Bug fix (non-breaking change which fixes an issue)",
+      ].join("\n");
+      const embed = createPROpenedEmbed(mockPRData({ body }));
+      const json = embed.toJSON();
+      const value = json.fields?.find((f) => f.name === "Description")?.value;
+
+      expect(value).toContain("Adds the webhook handler.");
+      expect(value).toContain("## Type of change");
+      expect(value).toContain("- [x] Bug fix");
+      expect(value).not.toContain("Screenshots");
+      expect(value).not.toContain("![Embed preview]");
+      expect(value).not.toContain("please provide screenshots");
+    });
+
+    it("should strip images from the description", () => {
+      const embed = createPROpenedEmbed(
+        mockPRData({
+          body: "Fixes #123\n\nHere is a preview:\n\n![Diagram](https://example.com/d.png)\n\nMore text.",
+        }),
+      );
+      const json = embed.toJSON();
+
+      expect(json.fields?.find((f) => f.name === "Description")?.value).toBe(
+        "Fixes #123\n\nHere is a preview:\n\nMore text.",
+      );
+    });
+
+    it("should drop screenshot sections even with nested sub-headings", () => {
+      const body = [
+        "## Screenshots",
+        "",
+        "### Before / After",
+        "",
+        "![Before](https://example.com/before.png)",
+        "",
+        "## Type of change",
+        "",
+        "- [x] Bug fix (non-breaking change which fixes an issue)",
+      ].join("\n");
+      const embed = createPROpenedEmbed(mockPRData({ body }));
+      const json = embed.toJSON();
+      const value = json.fields?.find((f) => f.name === "Description")?.value;
+
+      expect(value).toContain("## Type of change");
+      expect(value).toContain("- [x] Bug fix");
+      expect(value).not.toContain("Screenshots");
+      expect(value).not.toContain("### ");
+      expect(value).not.toContain("![Before]");
+    });
+
+    it("should stay within 1024 chars even with an excessively long PR URL", () => {
+      const embed = createPROpenedEmbed(
+        mockPRData({ url: `https://example.com/${"x".repeat(1100)}`, body: "y".repeat(2000) }),
+      );
+      const json = embed.toJSON();
+      const value = json.fields?.find((f) => f.name === "Description")?.value;
+
+      expect(value?.length).toBeLessThanOrEqual(1024);
     });
 
     it("should normalize CRLF line endings", () => {
