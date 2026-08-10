@@ -137,6 +137,7 @@ export async function handlePullRequestEvent(event: GitHubPRWebhookPayload): Pro
         authorAvatarUrl: prData.authorAvatarUrl,
         state: pr.state,
         url: prData.url,
+        isDraft: prData.draft,
         headSha: prData.headSha,
         mergeCommitSha: prData.mergeCommitSha,
       })
@@ -148,6 +149,7 @@ export async function handlePullRequestEvent(event: GitHubPRWebhookPayload): Pro
           authorAvatarUrl: prData.authorAvatarUrl,
           state: pr.state,
           url: prData.url,
+          isDraft: prData.draft,
           headSha: prData.headSha,
           mergeCommitSha: prData.mergeCommitSha,
           updatedAt: new Date(),

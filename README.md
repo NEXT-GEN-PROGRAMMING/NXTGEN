@@ -369,6 +369,7 @@ NEXTGEN/
 | Command                               | Description                                          |
 | ------------------------------------- | ---------------------------------------------------- |
 | `/github-setup`                       | Configure the channel for GitHub PR notifications (Admin only) |
+| `/pr-link <github_username>`          | Link your Discord account to your GitHub username    |
 | `/pr-search <query> [state]`          | Search for past PRs by title, author, or commit hash |
 | `/pr-stats [username]`                | View a user's PR stats or the global PR leaderboard  |
 

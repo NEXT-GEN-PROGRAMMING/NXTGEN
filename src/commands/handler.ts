@@ -1,4 +1,5 @@
 import { Collection, REST, Routes } from "discord.js";
+import * as prLink from "@/commands/github/pr-link.js";
 import * as prSearch from "@/commands/github/pr-search.js";
 import * as prStats from "@/commands/github/pr-stats.js";
 // Import all commands here
@@ -12,7 +13,7 @@ import { logger } from "@/core/logger.js";
 export const commands = new Collection<string, Command>();
 
 // Register each command in the collection
-const allCommands: Command[] = [githubSetup, prSearch, prStats, help];
+const allCommands: Command[] = [githubSetup, prLink, prSearch, prStats, help];
 
 for (const command of allCommands) {
   commands.set(command.data.name, command);

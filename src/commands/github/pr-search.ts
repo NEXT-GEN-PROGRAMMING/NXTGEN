@@ -1,7 +1,7 @@
 import { type ChatInputCommandInteraction, EmbedBuilder, SlashCommandBuilder } from "discord.js";
 import { and, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "@/core/database.js";
-import { githubPullRequests } from "@/features/github/schema.js";
+import { githubPullRequests, githubUserLinks } from "@/features/github/schema.js";
 
 export const data = new SlashCommandBuilder()
   .setName("pr-search")
@@ -20,8 +20,22 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
-  const query = interaction.options.getString("query", true);
+  let query = interaction.options.getString("query", true);
   const state = interaction.options.getString("state");
+
+  const mentionMatch = query.match(/^<@!?(\d+)>$/);
+  if (mentionMatch) {
+    const discordId = mentionMatch[1];
+    const link = await db
+      .select({ githubUsername: githubUserLinks.githubUsername })
+      .from(githubUserLinks)
+      .where(eq(githubUserLinks.discordId, discordId))
+      .limit(1);
+
+    if (link.length > 0) {
+      query = link[0].githubUsername;
+    }
+  }
 
   let conditions = or(
     ilike(githubPullRequests.title, `%${query}%`),
@@ -59,8 +73,13 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
             let emoji = "❌";
             let stateText = "Closed";
             if (pr.state === "open") {
-              emoji = "✅";
-              stateText = "Open";
+              if (pr.isDraft) {
+                emoji = "📝";
+                stateText = "Draft";
+              } else {
+                emoji = "✅";
+                stateText = "Open";
+              }
             } else if (pr.mergeCommitSha) {
               emoji = "🟪";
               stateText = "Merged";

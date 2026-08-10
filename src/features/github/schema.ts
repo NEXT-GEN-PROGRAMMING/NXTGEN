@@ -1,4 +1,4 @@
-import { integer, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { boolean, integer, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 
 export const githubWebhookConfigs = pgTable("github_webhook_configs", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -19,6 +19,7 @@ export const githubPullRequests = pgTable(
     authorAvatarUrl: text("author_avatar_url"),
     state: text("state").notNull(),
     url: text("url").notNull(),
+    isDraft: boolean("is_draft").default(false).notNull(),
     headSha: text("head_sha"),
     mergeCommitSha: text("merge_commit_sha"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -28,3 +29,10 @@ export const githubPullRequests = pgTable(
     unq: unique().on(t.prNumber, t.repoFullName),
   }),
 );
+
+export const githubUserLinks = pgTable("github_user_links", {
+  discordId: text("discord_id").primaryKey(),
+  githubUsername: text("github_username").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
