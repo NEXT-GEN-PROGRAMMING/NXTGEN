@@ -345,6 +345,16 @@ NEXTGEN/
 3. **Receive events** — When a PR is opened, closed, merged, reviewed, or labelled, GitHub sends a webhook payload to `POST /webhooks/github`.
 4. **Bot processes the event** — The payload is verified, queued via BullMQ, enriched via Octokit, persisted in PostgreSQL, and an embed is sent to the linked Discord channel.
 
+### Setting Up GitHub OAuth (Optional but Recommended)
+
+If you want users to link their Discord accounts to GitHub (enabling true authorship and @mentions in PR commands), you need to create a GitHub OAuth App.
+
+1. Go to GitHub → **Settings** → **Developer Settings** → **OAuth Apps** → **New OAuth App**.
+2. Set the **Homepage URL** to your bot's public domain (e.g. `https://bot.yourdomain.com`).
+3. Set the **Authorization callback URL** to: `https://bot.yourdomain.com/auth/github/callback`.
+4. Copy the **Client ID** and generate a **Client Secret**.
+5. Add these to your `.env` file along with the `PUBLIC_URL` pointing to your domain.
+
 ### Setting Up the GitHub Webhook
 
 1. Navigate to your repository on GitHub → **Settings** → **Webhooks** → **Add webhook**.
@@ -369,7 +379,7 @@ NEXTGEN/
 | Command                               | Description                                          |
 | ------------------------------------- | ---------------------------------------------------- |
 | `/github-setup`                       | Configure the channel for GitHub PR notifications (Admin only) |
-| `/pr-link <github_username>`          | Link your Discord account to your GitHub username    |
+| `/github-link`                        | Link your Discord account to your GitHub account via OAuth |
 | `/pr-search <query> [state]`          | Search for past PRs by title, author, or commit hash |
 | `/pr-stats [username]`                | View a user's PR stats or the global PR leaderboard  |
 

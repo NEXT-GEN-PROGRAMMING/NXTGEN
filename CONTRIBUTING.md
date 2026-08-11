@@ -77,6 +77,8 @@ pnpm install
 # 4. Copy the example environment file
 cp .env.example .env
 # Edit .env with your Discord token, database URL, etc.
+# For local GitHub webhook and OAuth testing, use a tool like cloudflared or ngrok 
+# to get a public HTTPS URL and set it as your PUBLIC_URL.
 
 # 5. Start PostgreSQL and Redis (using the provided docker-compose.yml)
 docker compose up -d postgres redis

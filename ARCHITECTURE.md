@@ -2,6 +2,63 @@
 
 This document outlines the system architecture for various modules and features within NEXTGEN.
 
+## GitHub OAuth Flow
+
+```mermaid
+flowchart TD
+    USER(["<b>User</b><br/>Discord Client"])
+    BOT["<b>Discord Bot</b><br/>/github-link command"]
+    DB[("<b>PostgreSQL</b><br/>github_oauth_states")]
+    GH_AUTH(["<b>GitHub</b><br/>Authorization Screen"])
+    HONO["<b>Hono</b><br/>GET /auth/github/callback"]
+    GH_API(["<b>GitHub API</b><br/>Access Token & User Profile"])
+    DB_LINKS[("<b>PostgreSQL</b><br/>github_user_links")]
+
+    USER -- "Runs /github-link" --> BOT
+    BOT -- "Generates state UUID" --> DB
+    BOT -- "Replies with OAuth URL" --> USER
+    USER -- "Clicks link & authorizes" --> GH_AUTH
+    GH_AUTH -- "Redirects with ?code & ?state" --> HONO
+    HONO -- "Validates state" --> DB
+    HONO -- "Exchanges code for token" --> GH_API
+    GH_API -- "Returns Token & Username" --> HONO
+    HONO -- "Upserts mapping & token" --> DB_LINKS
+    HONO -- "Returns Success HTML" --> USER
+
+    style USER fill:#5865f2,stroke:#4752c4,color:#fff
+    style BOT fill:#5865f2,stroke:#4752c4,color:#fff
+    style DB fill:#336791,stroke:#2a5478,color:#fff
+    style GH_AUTH fill:#24292e,stroke:#8b949e,color:#f0f6fc
+    style HONO fill:#e36002,stroke:#c45200,color:#fff
+    style GH_API fill:#24292e,stroke:#8b949e,color:#f0f6fc
+    style DB_LINKS fill:#336791,stroke:#2a5478,color:#fff
+```
+
+**In a nutshell:**
+
+1. The user runs `/github-link` in Discord.
+2. The bot (`src/commands/github/github-link.ts`) checks if they are already linked. It generates a secure `state` UUID, saves it to `github_oauth_states` via Drizzle ORM, and replies with an ephemeral embed containing the GitHub authorization link.
+3. The user clicks the link and authorizes the application on GitHub.
+4. GitHub redirects the user back to the bot's Hono server (`GET /auth/github/callback`) with a short-lived `code` and the original `state`.
+5. The Hono route (`src/features/github/webhooks/auth-route.ts`) verifies the `state` against the database to prevent CSRF attacks.
+6. The Hono route exchanges the `code` for an access token via the GitHub API.
+7. The Hono route fetches the user's GitHub profile (`/user`) using the new access token.
+8. The Discord ID, GitHub Username, and GitHub Access Token are persisted in the `github_user_links` table.
+9. The user is shown a clean, responsive HTML success page and can close the tab.
+
+---
+
+### Implementation Status
+
+✅ **Done:**
+1. **/github-link Command:** Implemented with smart "already linked" detection and secure OAuth URL generation.
+2. **CSRF Protection:** State parameters are actively tracked and validated against the `github_oauth_states` table, and deleted upon successful use.
+3. **OAuth Callback Route:** Handled natively in Hono with strict error boundaries for API failures.
+4. **Data Persistence:** The one-to-one mapping between Discord ID and GitHub account (plus their access token) is securely stored for future API interactions (like true authorship on issues/PRs).
+5. **Success Feedback:** A polished HTML page confirms the successful link.
+
+---
+
 ## GitHub PR Tracking
 
 
