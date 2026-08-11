@@ -11,19 +11,20 @@ import { env } from "@/config/env.js";
 import { logger } from "@/core/logger.js";
 
 // Command registry
-export const commands = new Collection<string, Command>();
-export const messageCommands = new Collection<string, MessageCommand>();
+export const commands = new Collection<string, Command | MessageCommand>();
 
 // Register each command in the collection
-const allCommands: Command[] = [githubSetup, prLink, prSearch, prStats, help];
-const allMessageCommands: MessageCommand[] = [createIssue];
+const allCommands: (Command | MessageCommand)[] = [
+  githubSetup,
+  prLink,
+  prSearch,
+  prStats,
+  help,
+  createIssue,
+];
 
 for (const command of allCommands) {
   commands.set(command.data.name, command);
-}
-
-for (const command of allMessageCommands) {
-  messageCommands.set(command.data.name, command);
 }
 
 /**
@@ -34,7 +35,7 @@ for (const command of allMessageCommands) {
  */
 export async function registerCommands(): Promise<void> {
   const rest = new REST({ version: "10" }).setToken(env.DISCORD_TOKEN);
-  const commandData = [...allCommands, ...allMessageCommands].map((cmd) => cmd.data.toJSON());
+  const commandData = allCommands.map((cmd) => cmd.data.toJSON());
 
   try {
     if (env.DISCORD_GUILD_ID) {

@@ -193,9 +193,5 @@ export async function handlePullRequestEvent(event: GitHubPRWebhookPayload): Pro
 
   if (!embed) return;
 
-  try {
-    await sendEmbedToConfiguredChannels(embed);
-  } catch (err) {
-    logger.error(err, "Failed to fetch webhook configs or send messages");
-  }
+  await sendEmbedToConfiguredChannels(embed);
 }

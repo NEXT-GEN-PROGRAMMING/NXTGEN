@@ -1,16 +1,9 @@
-import { Client, Events, GatewayIntentBits } from "discord.js";
-import { commands, messageCommands } from "@/commands/handler.js";
+import { Events } from "discord.js";
+import { commands } from "@/commands/handler.js";
 import type { Command, MessageCommand } from "@/commands/types.js";
 import { env } from "@/config/env.js";
+import { client } from "@/core/client.js";
 import { logger } from "@/core/logger.js";
-
-export const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-  ],
-});
 
 client.once(Events.ClientReady, (c) => {
   logger.info(`🤖 Bot is online! Logged in as ${c.user.tag}`);
@@ -18,14 +11,11 @@ client.once(Events.ClientReady, (c) => {
 
 // Route incoming slash command and message context menu interactions to their handlers
 client.on(Events.InteractionCreate, async (interaction) => {
-  let command: Command | MessageCommand | undefined;
-  if (interaction.isChatInputCommand()) {
-    command = commands.get(interaction.commandName);
-  } else if (interaction.isMessageContextMenuCommand()) {
-    command = messageCommands.get(interaction.commandName);
-  } else {
+  if (!interaction.isChatInputCommand() && !interaction.isMessageContextMenuCommand()) {
     return;
   }
+
+  const command = commands.get(interaction.commandName);
 
   if (!command) {
     logger.warn({ commandName: interaction.commandName }, "Unknown command received");

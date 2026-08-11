@@ -3,9 +3,12 @@ import {
   ContextMenuCommandBuilder,
   type MessageContextMenuCommandInteraction,
 } from "discord.js";
+import { eq } from "drizzle-orm";
 import { env } from "@/config/env.js";
+import { db } from "@/core/database.js";
 import { logger } from "@/core/logger.js";
 import { createIssueCreatedEmbed } from "@/features/github/embeds/issue-embed.js";
+import { githubUserLinks } from "@/features/github/schema.js";
 import { sendEmbedToConfiguredChannels } from "@/features/github/services/announcer.js";
 import { GitHubService } from "@/features/github/services/github.service.js";
 
@@ -16,32 +19,35 @@ export const data = new ContextMenuCommandBuilder()
   .setType(ApplicationCommandType.Message);
 
 export async function execute(interaction: MessageContextMenuCommandInteraction): Promise<void> {
-  await interaction.deferReply({ ephemeral: true });
-
-  const repoFullName = env.GITHUB_ISSUES_REPO;
-  if (!repoFullName) {
-    await interaction.editReply({
-      content:
-        "GitHub issue repo is not configured — set `GITHUB_ISSUES_REPO` in the bot environment.",
-    });
-    return;
-  }
-
-  const [owner, repo] = repoFullName.split("/");
-  if (!owner || !repo) {
-    await interaction.editReply({
-      content:
-        "`GITHUB_ISSUES_REPO` must be set as `owner/repo` (e.g. `NEXT-GEN-PROGRAMMING/NXTGEN`).",
-    });
-    return;
-  }
-
-  if (!interaction.guildId) {
-    await interaction.editReply({ content: "This action can only be used in a server." });
-    return;
-  }
-
   try {
+    await interaction.deferReply({ ephemeral: true });
+
+    const [owner, repo] = (env.GITHUB_ISSUES_REPO ?? "").split("/");
+    if (!owner || !repo) {
+      await interaction.editReply({
+        content:
+          "`GITHUB_ISSUES_REPO` must be set as `owner/repo` (e.g. `NEXT-GEN-PROGRAMMING/NXTGEN`).",
+      });
+      return;
+    }
+
+    if (!interaction.guildId) {
+      await interaction.editReply({ content: "This action can only be used in a server." });
+      return;
+    }
+
+    const [link] = await db
+      .select()
+      .from(githubUserLinks)
+      .where(eq(githubUserLinks.discordId, interaction.user.id));
+
+    if (!link?.githubAccessToken) {
+      await interaction.editReply({
+        content: "You must link your GitHub account first! Run /github-link to do so.",
+      });
+      return;
+    }
+
     let target = interaction.targetMessage;
     if (target.partial) {
       target = await target.fetch();
@@ -54,17 +60,16 @@ export async function execute(interaction: MessageContextMenuCommandInteraction)
         ? "Issue from Discord"
         : `${content.slice(0, MAX_TITLE_CHARS)}${content.length > MAX_TITLE_CHARS ? "…" : ""}`;
     const messageLink = `https://discord.com/channels/${interaction.guildId}/${target.channelId}/${target.id}`;
-    const body =
-      `${quotedContent}Created from Discord by ${interaction.user.username}\n${messageLink}`.trim();
+    const body = `${quotedContent}Created from Discord by ${interaction.user.username}\n${messageLink}`;
 
-    const service = new GitHubService();
+    const service = new GitHubService(link.githubAccessToken);
     const issue = await service.createIssue(owner, repo, title, body);
 
     const embed = createIssueCreatedEmbed({
       issueNumber: issue.number,
       title,
       url: issue.url,
-      repoFullName,
+      repoFullName: `${owner}/${repo}`,
       authorTag: interaction.user.tag,
       authorAvatarUrl: interaction.user.displayAvatarURL(),
       messageLink,
@@ -75,8 +80,11 @@ export async function execute(interaction: MessageContextMenuCommandInteraction)
     await sendEmbedToConfiguredChannels(embed);
   } catch (error) {
     logger.error({ err: error }, "Failed to create GitHub issue");
-    await interaction.editReply({
-      content: "An error occurred while creating the issue. Please try again later.",
-    });
+    const content = "An error occurred while creating the issue. Please try again later.";
+    if (interaction.deferred) {
+      await interaction.editReply({ content });
+    } else {
+      await interaction.reply({ content, ephemeral: true });
+    }
   }
 }

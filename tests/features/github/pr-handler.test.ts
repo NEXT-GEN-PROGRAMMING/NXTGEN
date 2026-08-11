@@ -25,7 +25,7 @@ vi.mock("@/core/database.js", () => ({
   },
 }));
 
-vi.mock("@/core/bot.js", () => ({
+vi.mock("@/core/client.js", () => ({
   client: {
     channels: {
       fetch: vi.fn().mockResolvedValue({
@@ -45,7 +45,7 @@ vi.mock("@/features/github/services/github.service.js", () => ({
   GitHubService: vi.fn(),
 }));
 
-import { client } from "@/core/bot.js";
+import { client } from "@/core/client.js";
 import { GitHubService } from "@/features/github/services/github.service.js";
 import {
   type GitHubPRWebhookPayload,

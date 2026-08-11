@@ -1,5 +1,5 @@
 import type { EmbedBuilder, TextChannel } from "discord.js";
-import { client } from "@/core/bot.js";
+import { client } from "@/core/client.js";
 import { db } from "@/core/database.js";
 import { logger } from "@/core/logger.js";
 import { githubWebhookConfigs } from "@/features/github/schema.js";

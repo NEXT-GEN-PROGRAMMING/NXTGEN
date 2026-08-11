@@ -10,11 +10,15 @@ vi.mock("@/core/logger.js", () => ({
   },
 }));
 
-const { envMock, dbSelectFromMock, createIssueMock } = vi.hoisted(() => ({
-  envMock: { GITHUB_ISSUES_REPO: "test/repo" } as { GITHUB_ISSUES_REPO: string | undefined },
-  dbSelectFromMock: vi.fn(),
-  createIssueMock: vi.fn(),
-}));
+const { envMock, dbSelectFromMock, dbWhereMock, createIssueMock, webhookConfigs } = vi.hoisted(
+  () => ({
+    envMock: { GITHUB_ISSUES_REPO: "test/repo" } as { GITHUB_ISSUES_REPO: string | undefined },
+    dbSelectFromMock: vi.fn(),
+    dbWhereMock: vi.fn(),
+    createIssueMock: vi.fn(),
+    webhookConfigs: [{ id: "1", guildId: "guild1", channelId: "ch1" }],
+  }),
+);
 
 vi.mock("@/config/env.js", () => ({
   env: envMock,
@@ -26,7 +30,7 @@ vi.mock("@/core/database.js", () => ({
   },
 }));
 
-vi.mock("@/core/bot.js", () => ({
+vi.mock("@/core/client.js", () => ({
   client: {
     channels: {
       fetch: vi.fn().mockResolvedValue({
@@ -38,7 +42,8 @@ vi.mock("@/core/bot.js", () => ({
 }));
 
 vi.mock("@/features/github/schema.js", () => ({
-  githubWebhookConfigs: {},
+  githubWebhookConfigs: { name: "githubWebhookConfigs" },
+  githubUserLinks: { name: "githubUserLinks" },
 }));
 
 vi.mock("@/features/github/services/github.service.js", () => ({
@@ -47,16 +52,18 @@ vi.mock("@/features/github/services/github.service.js", () => ({
 
 import type { MessageContextMenuCommandInteraction } from "discord.js";
 import { execute } from "@/commands/github/create-issue.js";
-import { client } from "@/core/bot.js";
+import { client } from "@/core/client.js";
 import {
   createIssueCreatedEmbed,
   type IssueCreatedData,
 } from "@/features/github/embeds/issue-embed.js";
+import { githubUserLinks } from "@/features/github/schema.js";
 import { GitHubService } from "@/features/github/services/github.service.js";
 
 interface MockInteraction {
   deferReply: ReturnType<typeof vi.fn>;
   editReply: ReturnType<typeof vi.fn>;
+  reply: ReturnType<typeof vi.fn>;
   guildId: string;
   user: { id: string; tag: string; displayAvatarURL: () => string };
   targetMessage: { partial: boolean; content: string; channelId: string; id: string };
@@ -66,6 +73,7 @@ function mockInteraction(content: string): MockInteraction {
   return {
     deferReply: vi.fn().mockResolvedValue(undefined),
     editReply: vi.fn().mockResolvedValue(undefined),
+    reply: vi.fn().mockResolvedValue(undefined),
     guildId: "guild1",
     user: { id: "user1", tag: "tester", displayAvatarURL: () => "https://example.com/a.png" },
     targetMessage: { partial: false, content, channelId: "ch2", id: "m1" },
@@ -105,7 +113,12 @@ describe("create-issue command", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     envMock.GITHUB_ISSUES_REPO = "test/repo";
-    dbSelectFromMock.mockResolvedValue([{ id: "1", guildId: "guild1", channelId: "ch1" }]);
+    dbSelectFromMock.mockImplementation((table: unknown) =>
+      table === githubUserLinks ? { where: dbWhereMock } : Promise.resolve(webhookConfigs),
+    );
+    dbWhereMock.mockResolvedValue([
+      { discordId: "user1", githubUsername: "tester", githubAccessToken: "user-token" },
+    ]);
     createIssueMock.mockResolvedValue({ number: 7, url: "https://github.com/test/repo/issues/7" });
     // biome-ignore lint/complexity/useArrowFunction: must be constructible for `new` on the mock
     vi.mocked(GitHubService).mockImplementation(function () {
@@ -117,6 +130,7 @@ describe("create-issue command", () => {
     const interaction = mockInteraction("x".repeat(200));
     await execute(interaction as unknown as MessageContextMenuCommandInteraction);
 
+    expect(vi.mocked(GitHubService)).toHaveBeenCalledWith("user-token");
     expect(createIssueMock).toHaveBeenCalledWith(
       "test",
       "repo",
@@ -146,6 +160,42 @@ describe("create-issue command", () => {
     );
     expect(interaction.editReply).toHaveBeenCalledWith({
       content: "Issue created: https://github.com/test/repo/issues/7",
+    });
+  });
+
+  it("replies with the link prompt when the user has not linked a GitHub account", async () => {
+    dbWhereMock.mockResolvedValue([]);
+    const interaction = mockInteraction("Hello");
+    await execute(interaction as unknown as MessageContextMenuCommandInteraction);
+
+    expect(createIssueMock).not.toHaveBeenCalled();
+    expect(interaction.editReply).toHaveBeenCalledWith({
+      content: "You must link your GitHub account first! Run /github-link to do so.",
+    });
+  });
+
+  it("replies with the link prompt when a linked user has no access token", async () => {
+    dbWhereMock.mockResolvedValue([
+      { discordId: "user1", githubUsername: "tester", githubAccessToken: null },
+    ]);
+    const interaction = mockInteraction("Hello");
+    await execute(interaction as unknown as MessageContextMenuCommandInteraction);
+
+    expect(createIssueMock).not.toHaveBeenCalled();
+    expect(interaction.editReply).toHaveBeenCalledWith({
+      content: "You must link your GitHub account first! Run /github-link to do so.",
+    });
+  });
+
+  it("replies directly with an error when the initial deferral fails", async () => {
+    const interaction = mockInteraction("Hello");
+    interaction.deferReply.mockRejectedValueOnce(new Error("boom"));
+    await execute(interaction as unknown as MessageContextMenuCommandInteraction);
+
+    expect(createIssueMock).not.toHaveBeenCalled();
+    expect(interaction.reply).toHaveBeenCalledWith({
+      content: "An error occurred while creating the issue. Please try again later.",
+      ephemeral: true,
     });
   });
 
