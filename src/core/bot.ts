@@ -1,5 +1,6 @@
 import { Client, Events, GatewayIntentBits } from "discord.js";
-import { commands } from "@/commands/handler.js";
+import { commands, messageCommands } from "@/commands/handler.js";
+import type { Command, MessageCommand } from "@/commands/types.js";
 import { env } from "@/config/env.js";
 import { logger } from "@/core/logger.js";
 
@@ -15,11 +16,16 @@ client.once(Events.ClientReady, (c) => {
   logger.info(`🤖 Bot is online! Logged in as ${c.user.tag}`);
 });
 
-// Route incoming slash command interactions to their handlers
+// Route incoming slash command and message context menu interactions to their handlers
 client.on(Events.InteractionCreate, async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-
-  const command = commands.get(interaction.commandName);
+  let command: Command | MessageCommand | undefined;
+  if (interaction.isChatInputCommand()) {
+    command = commands.get(interaction.commandName);
+  } else if (interaction.isMessageContextMenuCommand()) {
+    command = messageCommands.get(interaction.commandName);
+  } else {
+    return;
+  }
 
   if (!command) {
     logger.warn({ commandName: interaction.commandName }, "Unknown command received");
@@ -27,7 +33,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 
   try {
-    await command.execute(interaction);
+    if (interaction.isChatInputCommand()) {
+      await (command as Command).execute(interaction);
+    } else {
+      await (command as MessageCommand).execute(interaction);
+    }
   } catch (error) {
     logger.error({ err: error, commandName: interaction.commandName }, "Command execution failed");
 

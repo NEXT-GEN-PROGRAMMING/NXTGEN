@@ -26,6 +26,9 @@ const envSchema = z.object({
   // GitHub API (used by src/features/github/services/github.service.ts)
   GITHUB_TOKEN: z.string().min(1, "GitHub token is required"),
 
+  // Repo (owner/repo) where issues are created from Discord; unset → command errors at runtime
+  GITHUB_ISSUES_REPO: z.string().optional(),
+
   // Logging & Env
   LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),

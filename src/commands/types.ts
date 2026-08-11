@@ -1,5 +1,7 @@
 import type {
   ChatInputCommandInteraction,
+  ContextMenuCommandBuilder,
+  MessageContextMenuCommandInteraction,
   SlashCommandBuilder,
   SlashCommandOptionsOnlyBuilder,
   SlashCommandSubcommandsOnlyBuilder,
@@ -8,4 +10,9 @@ import type {
 export interface Command {
   data: SlashCommandBuilder | SlashCommandOptionsOnlyBuilder | SlashCommandSubcommandsOnlyBuilder;
   execute: (interaction: ChatInputCommandInteraction) => Promise<void>;
+}
+
+export interface MessageCommand {
+  data: ContextMenuCommandBuilder;
+  execute: (interaction: MessageContextMenuCommandInteraction) => Promise<void>;
 }

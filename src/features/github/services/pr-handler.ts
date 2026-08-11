@@ -1,5 +1,4 @@
-import type { EmbedBuilder, TextChannel } from "discord.js";
-import { client } from "@/core/bot.js";
+import type { EmbedBuilder } from "discord.js";
 import { db } from "@/core/database.js";
 import { logger } from "@/core/logger.js";
 import {
@@ -10,7 +9,8 @@ import {
   createPRReviewRequestedEmbed,
   type PREventData,
 } from "@/features/github/embeds/pr-embed.js";
-import { githubPullRequests, githubWebhookConfigs } from "@/features/github/schema.js";
+import { githubPullRequests } from "@/features/github/schema.js";
+import { sendEmbedToConfiguredChannels } from "@/features/github/services/announcer.js";
 import {
   type CheckRunSummary,
   GitHubService,
@@ -194,19 +194,7 @@ export async function handlePullRequestEvent(event: GitHubPRWebhookPayload): Pro
   if (!embed) return;
 
   try {
-    const configs = await db.select().from(githubWebhookConfigs);
-    logger.info({ configCount: configs.length }, "Sending PR embed to configured channels");
-
-    for (const config of configs) {
-      try {
-        const channel = (await client.channels.fetch(config.channelId)) as TextChannel | null;
-        if (channel?.isTextBased()) {
-          await channel.send({ embeds: [embed] });
-        }
-      } catch (err) {
-        logger.error({ err, channelId: config.channelId }, "Failed to send embed to channel");
-      }
-    }
+    await sendEmbedToConfiguredChannels(embed);
   } catch (err) {
     logger.error(err, "Failed to fetch webhook configs or send messages");
   }
