@@ -14,6 +14,8 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     .setTimestamp();
 
   for (const [, command] of commands) {
+    if (!("description" in command.data)) continue;
+
     embed.addFields({
       name: `/${command.data.name}`,
       value: command.data.description,

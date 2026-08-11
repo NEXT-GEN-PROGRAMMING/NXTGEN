@@ -15,11 +15,27 @@ export interface ReviewSummary {
   commented: number;
 }
 
+export interface CreatedIssue {
+  number: number;
+  url: string;
+}
+
 export class GitHubService {
   private readonly octokit: Octokit;
 
   constructor(token = env.GITHUB_TOKEN) {
     this.octokit = new Octokit({ auth: token });
+  }
+
+  async createIssue(
+    owner: string,
+    repo: string,
+    title: string,
+    body: string,
+  ): Promise<CreatedIssue> {
+    const { data } = await this.octokit.rest.issues.create({ owner, repo, title, body });
+
+    return { number: data.number, url: data.html_url };
   }
 
   async getCheckRuns(owner: string, repo: string, headSha: string): Promise<CheckRunSummary> {

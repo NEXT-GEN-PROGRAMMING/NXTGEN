@@ -4,7 +4,7 @@ Given the powerful stack (PostgreSQL, Redis, BullMQ, Hono, discord.js), NEXTGEN 
 
 ## Phase 1: Integrations (Current)
 - [x] **GitHub PR Tracking** (Webhook-based notifications for opened, closed, merged, and reviewed PRs).
-- [ ] **GitHub Issues Integration** (Create issues from Discord messages via context menu).
+- [x] **GitHub Issues Integration** (Create issues from Discord messages via context menu).
 
 ## Phase 2: Moderation & Server Management
 - [ ] **Advanced Auto-Moderation**: Anti-spam, anti-phishing link detection, and mass-mention prevention.

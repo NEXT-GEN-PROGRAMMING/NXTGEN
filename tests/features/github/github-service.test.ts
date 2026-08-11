@@ -15,6 +15,9 @@ import { GitHubService } from "@/features/github/services/github.service.js";
 
 interface MockOctokitInstance {
   rest: {
+    issues: {
+      create: ReturnType<typeof vi.fn>;
+    };
     pulls: {
       listReviews: ReturnType<typeof vi.fn>;
     };
@@ -27,6 +30,9 @@ interface MockOctokitInstance {
 function createMockOctokit(): MockOctokitInstance {
   return {
     rest: {
+      issues: {
+        create: vi.fn(),
+      },
       pulls: {
         listReviews: vi.fn(),
       },
@@ -48,6 +54,32 @@ describe("GitHubService", () => {
       return octokit as unknown as Octokit;
     });
     service = new GitHubService("test-token");
+  });
+
+  describe("createIssue", () => {
+    it("should create an issue and return its number and URL", async () => {
+      octokit.rest.issues.create.mockResolvedValue({
+        data: { number: 7, html_url: "https://github.com/NEXT-GEN-PROGRAMMING/NXTGEN/issues/7" },
+      });
+
+      const issue = await service.createIssue(
+        "NEXT-GEN-PROGRAMMING",
+        "NXTGEN",
+        "Bug: broken thing",
+        "details",
+      );
+
+      expect(octokit.rest.issues.create).toHaveBeenCalledWith({
+        owner: "NEXT-GEN-PROGRAMMING",
+        repo: "NXTGEN",
+        title: "Bug: broken thing",
+        body: "details",
+      });
+      expect(issue).toEqual({
+        number: 7,
+        url: "https://github.com/NEXT-GEN-PROGRAMMING/NXTGEN/issues/7",
+      });
+    });
   });
 
   describe("getCheckRuns", () => {

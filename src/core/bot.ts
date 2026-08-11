@@ -15,9 +15,9 @@ client.once(Events.ClientReady, (c) => {
   logger.info(`🤖 Bot is online! Logged in as ${c.user.tag}`);
 });
 
-// Route incoming slash command interactions to their handlers
+// Route incoming command interactions (slash and message context menu) to their handlers
 client.on(Events.InteractionCreate, async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
+  if (!interaction.isChatInputCommand() && !interaction.isMessageContextMenuCommand()) return;
 
   const command = commands.get(interaction.commandName);
 

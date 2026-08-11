@@ -8,6 +8,14 @@ export const githubWebhookConfigs = pgTable("github_webhook_configs", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const githubIssueConfigs = pgTable("github_issue_configs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  guildId: text("guild_id").notNull().unique(),
+  repoFullName: text("repo_full_name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const githubPullRequests = pgTable(
   "github_pull_requests",
   {
