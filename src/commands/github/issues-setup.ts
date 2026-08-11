@@ -4,6 +4,7 @@ import {
   PermissionFlagsBits,
   SlashCommandBuilder,
 } from "discord.js";
+import { requireGuild } from "@/commands/guards.js";
 import { db } from "@/core/database.js";
 import { logger } from "@/core/logger.js";
 import { parseRepoFullName } from "@/features/github/repo-name.js";
@@ -21,13 +22,8 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
-  if (!interaction.guildId) {
-    await interaction.reply({
-      content: "This command can only be used in a server.",
-      ephemeral: true,
-    });
-    return;
-  }
+  const guildId = await requireGuild(interaction);
+  if (!guildId) return;
 
   const repo = interaction.options.getString("repo", true);
   const parsedRepo = parseRepoFullName(repo);
@@ -45,7 +41,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     await db
       .insert(githubIssueConfigs)
       .values({
-        guildId: interaction.guildId,
+        guildId,
         repoFullName,
       })
       .onConflictDoUpdate({
@@ -65,11 +61,12 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       .setTimestamp();
 
     await interaction.reply({ embeds: [embed], ephemeral: true });
-    logger.info(
-      { guildId: interaction.guildId, repo: repoFullName },
-      "Configured GitHub issues repository",
+    logger.info({ guildId, repo: repoFullName }, "Configured GitHub issues repository");
+  } catch (error) {
+    logger.error(
+      { err: error, guildId, repo: repoFullName },
+      "Failed to configure GitHub issues repository",
     );
-  } catch (_error) {
     await interaction.reply({
       content: "An error occurred while configuring the repository. Please try again later.",
       ephemeral: true,

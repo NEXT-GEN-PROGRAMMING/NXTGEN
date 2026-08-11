@@ -13,6 +13,11 @@ describe("parseRepoFullName", () => {
     expect(parseRepoFullName("no-slash")).toBeNull();
     expect(parseRepoFullName("a/b/c")).toBeNull();
     expect(parseRepoFullName("")).toBeNull();
+    expect(parseRepoFullName("-owner/repo")).toBeNull();
+    expect(parseRepoFullName("owner/repo-")).toBeNull();
+    expect(parseRepoFullName(".owner/repo")).toBeNull();
+    expect(parseRepoFullName("owner/repo.")).toBeNull();
+    expect(parseRepoFullName("owner/foo..bar")).toBeNull();
   });
 
   it("should reject segments exceeding GitHub length limits", () => {

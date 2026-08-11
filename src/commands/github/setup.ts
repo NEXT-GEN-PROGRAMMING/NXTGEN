@@ -6,6 +6,7 @@ import {
   SlashCommandBuilder,
   type TextChannel,
 } from "discord.js";
+import { requireGuild } from "@/commands/guards.js";
 import { db } from "@/core/database.js";
 import { logger } from "@/core/logger.js";
 import { githubWebhookConfigs } from "@/features/github/schema.js";
@@ -23,13 +24,8 @@ export const data = new SlashCommandBuilder()
   );
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
-  if (!interaction.guildId) {
-    await interaction.reply({
-      content: "This command can only be used in a server.",
-      ephemeral: true,
-    });
-    return;
-  }
+  const guildId = await requireGuild(interaction);
+  if (!guildId) return;
 
   const channel = interaction.options.getChannel("channel", true) as TextChannel;
 
@@ -37,7 +33,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     await db
       .insert(githubWebhookConfigs)
       .values({
-        guildId: interaction.guildId,
+        guildId,
         channelId: channel.id,
       })
       .onConflictDoUpdate({
@@ -60,10 +56,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
       .setTimestamp();
 
     await interaction.reply({ embeds: [embed], ephemeral: true });
-    logger.info(
-      { guildId: interaction.guildId, channelId: channel.id },
-      "Configured GitHub webhook channel",
-    );
+    logger.info({ guildId, channelId: channel.id }, "Configured GitHub webhook channel");
   } catch (error) {
     logger.error(error, "Failed to configure GitHub webhook channel");
     await interaction.reply({

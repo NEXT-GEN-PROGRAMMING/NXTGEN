@@ -1,23 +1,11 @@
 import { z } from "zod";
 
-const MAX_OWNER_LENGTH = 39;
-const MAX_REPO_LENGTH = 100;
-
 const repoFullNameSchema = z
   .string()
   .trim()
-  .regex(/^[\w.-]+\/[\w.-]+$/)
-  .refine(
-    (value) => {
-      const [owner, repo] = value.split("/");
-      return (
-        owner !== undefined &&
-        repo !== undefined &&
-        owner.length <= MAX_OWNER_LENGTH &&
-        repo.length <= MAX_REPO_LENGTH
-      );
-    },
-    { message: "Repository segments exceed GitHub length limits" },
+  .regex(
+    /^(?!.*\.\.)[A-Za-z0-9](?:[\w.-]{0,37}[A-Za-z0-9])?\/[A-Za-z0-9](?:[\w.-]{0,98}[A-Za-z0-9])?$/,
+    "Repository segments exceed GitHub length limits",
   );
 
 export interface ParsedRepoFullName {
