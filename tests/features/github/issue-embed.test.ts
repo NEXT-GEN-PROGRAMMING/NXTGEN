@@ -159,4 +159,15 @@ describe("create-issue command", () => {
       expect.objectContaining({ content: expect.stringContaining("GITHUB_ISSUES_REPO") }),
     );
   });
+
+  it("replies with an error when the issue repo is not in owner/repo format", async () => {
+    envMock.GITHUB_ISSUES_REPO = "test";
+    const interaction = mockInteraction("Hello");
+    await execute(interaction as unknown as MessageContextMenuCommandInteraction);
+
+    expect(createIssueMock).not.toHaveBeenCalled();
+    expect(interaction.editReply).toHaveBeenCalledWith(
+      expect.objectContaining({ content: expect.stringContaining("owner/repo") }),
+    );
+  });
 });

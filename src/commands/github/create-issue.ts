@@ -27,6 +27,15 @@ export async function execute(interaction: MessageContextMenuCommandInteraction)
     return;
   }
 
+  const [owner, repo] = repoFullName.split("/");
+  if (!owner || !repo) {
+    await interaction.editReply({
+      content:
+        "`GITHUB_ISSUES_REPO` must be set as `owner/repo` (e.g. `NEXT-GEN-PROGRAMMING/NXTGEN`).",
+    });
+    return;
+  }
+
   if (!interaction.guildId) {
     await interaction.editReply({ content: "This action can only be used in a server." });
     return;
@@ -39,16 +48,15 @@ export async function execute(interaction: MessageContextMenuCommandInteraction)
     }
 
     const content = target.content.trim();
+    const quotedContent = content.length > 0 ? `> ${content}\n\n` : "";
     const title =
       content.length === 0
         ? "Issue from Discord"
         : `${content.slice(0, MAX_TITLE_CHARS)}${content.length > MAX_TITLE_CHARS ? "…" : ""}`;
     const messageLink = `https://discord.com/channels/${interaction.guildId}/${target.channelId}/${target.id}`;
-    const body = `${
-      content.length > 0 ? `> ${content}` : ""
-    }\n\nCreated from Discord by <@${interaction.user.id}> in <#${target.channelId}>\n${messageLink}`.trim();
+    const body =
+      `${quotedContent}Created from Discord by ${interaction.user.username}\n${messageLink}`.trim();
 
-    const [owner, repo] = repoFullName.split("/");
     const service = new GitHubService();
     const issue = await service.createIssue(owner, repo, title, body);
 
