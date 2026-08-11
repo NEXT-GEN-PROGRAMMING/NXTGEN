@@ -29,6 +29,11 @@ const envSchema = z.object({
   // Repo (owner/repo) where issues are created from Discord; unset → command errors at runtime
   GITHUB_ISSUES_REPO: z.string().optional(),
 
+  // GitHub OAuth
+  GITHUB_CLIENT_ID: z.string().optional(),
+  GITHUB_CLIENT_SECRET: z.string().optional(),
+  PUBLIC_URL: z.string().url("Must be a valid URL").optional(),
+
   // Logging & Env
   LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),

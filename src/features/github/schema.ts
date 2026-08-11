@@ -33,6 +33,13 @@ export const githubPullRequests = pgTable(
 export const githubUserLinks = pgTable("github_user_links", {
   discordId: text("discord_id").primaryKey(),
   githubUsername: text("github_username").notNull(),
+  githubAccessToken: text("github_access_token"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const githubOauthStates = pgTable("github_oauth_states", {
+  state: uuid("state").primaryKey(),
+  discordId: text("discord_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
