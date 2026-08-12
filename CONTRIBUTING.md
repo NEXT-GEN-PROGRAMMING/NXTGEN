@@ -391,7 +391,7 @@ You can also use a filename or feature name as a scope when the predefined scope
 
 ```bash
 # Feature
-feat(github): add PR review status to embeds
+feat(github): add interactive /create-issue modals
 
 # Bug fix
 fix(api): validate webhook signature before parsing body

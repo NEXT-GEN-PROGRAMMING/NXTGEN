@@ -55,7 +55,7 @@ Everything is written in **TypeScript**, backed by **PostgreSQL** for persistenc
 
 ## Features
 
-### GitHub PR Tracking *(v0.1 — initial release)*
+### GitHub PR Tracking
 
 - **Real-time PR notifications** — Receive instant Discord embeds when pull requests are opened, closed, merged, reviewed, or updated.
 - **In-place Embed Sync** — When new commits are pushed to a PR, the bot silently updates the original embed in-place instead of spamming the channel.
@@ -63,6 +63,13 @@ Everything is written in **TypeScript**, backed by **PostgreSQL** for persistenc
 - **Rich status embeds** — See PR title, author, labels, review status, CI checks, and merge state at a glance.
 - **Webhook-first architecture** — GitHub pushes events to the bot; no polling, no delays.
 - **Secure webhook verification** — All incoming payloads are validated using GitHub's HMAC-SHA256 signatures.
+
+### GitHub Issues Integration
+
+- **Discord Modals** — Instantly create structured Bug Reports and Feature Requests from Discord.
+- **Context Menus** — Right-click any message to automatically turn it into an issue, embedding the message content natively.
+- **Multi-Repo Support** — Route issues to different GitHub repositories using interactive dropdown selection.
+- **Rich Announcements** — Sends an elegant Discord embed with the issue body and metadata once the issue is created.
 
 ### Core Platform
 
@@ -381,6 +388,7 @@ If you want users to link their Discord accounts to GitHub (enabling true author
 | ------------------------------------- | ---------------------------------------------------- |
 | `/github-setup`                       | Configure the channel for GitHub PR notifications (Admin only) |
 | `/github-link`                        | Link your Discord account to your GitHub account via OAuth |
+| `/create-issue`                       | Create a new GitHub issue directly from Discord via an interactive modal |
 | `/pr-search <query> [state]`          | Search for past PRs by title, author, or commit hash |
 | `/pr-stats [username]`                | View a user's PR stats or the global PR leaderboard  |
 
@@ -427,6 +435,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 - [x] Project scaffolding and architecture
 - [x] GitHub PR tracking via webhooks (Basic Sync)
 - [x] GitHub PR tracking — BullMQ background worker & Octokit enrichment
+- [x] GitHub Issues Integration — Discord Modals and Context Menus
 - [x] Slash command framework
 - [x] Docker Compose setup
 - [x] CI/CD pipeline (GitHub Actions)

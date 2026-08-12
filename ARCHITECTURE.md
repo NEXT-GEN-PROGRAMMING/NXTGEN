@@ -131,3 +131,63 @@ flowchart TD
 6. **BullMQ Worker:** `src/features/github/workers/pr.worker.ts` picks up jobs asynchronously (3 attempts, exponential backoff) and processes them via `src/features/github/services/pr-handler.ts`.
 7. **Octokit Enrichment:** `GitHubService` (`src/features/github/services/github.service.ts`) fetches CI check statuses (`checks.listForRef`) and review history (`pulls.listReviews`) to enrich the webhook payload. Enrichment is best-effort — on API failure the worker falls back to the raw webhook payload.
 8. **In-place Embed Sync:** When a `pull_request.synchronize` event occurs (e.g. new commits pushed), the bot queries `github_pr_messages` for the original Discord message IDs and seamlessly updates the original embeds in-place with refreshed CI checks and an updated footer, rather than spamming the channel with new messages.
+
+---
+
+## GitHub Issues Integration
+
+```mermaid
+flowchart TD
+    USER(["<b>User</b><br/>Discord Client"])
+    BOT["<b>Discord Bot</b><br/>/create-issue or Context Menu"]
+    DB[("<b>PostgreSQL</b><br/>github_user_links")]
+    DROPDOWN{"Multiple Repos<br/>Configured?"}
+    MODAL["<b>Discord Modal</b><br/>Input form"]
+    OCTOKIT["<b>Octokit</b><br/>GitHub API Client"]
+    GH_API(["<b>GitHub</b><br/>Create Issue API"])
+    EMBED["<b>discord.js</b><br/>Rich Embed"]
+
+    USER -- "Triggers Command" --> BOT
+    BOT -- "Check linked account" --> DB
+    BOT --> DROPDOWN
+    DROPDOWN -- "Yes" --> SELECT["<b>Discord UI</b><br/>Select Repo Dropdown"]
+    SELECT -- "User selects repo" --> MODAL
+    DROPDOWN -- "No" --> MODAL
+    MODAL -- "User submits form" --> OCTOKIT
+    OCTOKIT -- "POST /repos/{owner}/{repo}/issues" --> GH_API
+    GH_API -- "Returns new issue URL & details" --> EMBED
+    EMBED -- "Replies to user" --> USER
+
+    style USER fill:#5865f2,stroke:#4752c4,color:#fff
+    style BOT fill:#5865f2,stroke:#4752c4,color:#fff
+    style DB fill:#336791,stroke:#2a5478,color:#fff
+    style DROPDOWN fill:#1a1a2e,stroke:#8b949e,color:#f0f6fc
+    style SELECT fill:#5865f2,stroke:#4752c4,color:#fff
+    style MODAL fill:#5865f2,stroke:#4752c4,color:#fff
+    style OCTOKIT fill:#24292e,stroke:#8b949e,color:#f0f6fc
+    style GH_API fill:#24292e,stroke:#8b949e,color:#f0f6fc
+    style EMBED fill:#5865f2,stroke:#4752c4,color:#fff
+```
+
+**In a nutshell:**
+
+1. The user triggers the issue creation flow either by using a Message Context Menu (right-click -> Apps -> Report Bug) or the `/create-issue` slash command.
+2. The bot verifies if the user has linked their GitHub account by querying `github_user_links` in PostgreSQL. If not, it prompts them to use `/github-link`.
+3. The bot checks `GITHUB_ISSUES_REPO` from the environment. If multiple repositories are configured, it replies with an interactive `StringSelectMenu` allowing the user to pick the target repository. If only one is configured, it skips this step.
+4. The bot responds with a Discord Modal specific to the action (Bug Report or Feature Request) containing structured text inputs.
+5. Upon submission, the bot retrieves the user's stored GitHub Access Token.
+6. The bot uses `Octokit` to authenticate as the user and dynamically generates a Markdown body (embedding the original Discord message URL, if applicable).
+7. The bot creates the issue on GitHub via the API.
+8. The bot replies in Discord with an elegant embed announcing the new issue, containing a truncated preview of the issue body and a direct link.
+
+---
+
+### Implementation Status
+
+✅ **Done:**
+1. **Interactive Commands:** Supports both Message Context Menus and a slash command (`/create-issue`) that renders interactive action buttons.
+2. **Multi-Repo Routing:** Dynamically parses the environment configuration to prompt users with a select menu if multiple target repositories are available.
+3. **Structured Modals:** Modular builders for "Report Bug" and "Request Feature" Modals that enforce necessary issue details.
+4. **True Authorship:** Uses the user's stored OAuth token so that issues created on GitHub are correctly attributed to their personal GitHub account, not the bot.
+5. **Rich Embed Feedback:** Successfully created issues are announced with a polished embed showcasing the issue title, repo, author, URL, and the actual submitted body content.
+
