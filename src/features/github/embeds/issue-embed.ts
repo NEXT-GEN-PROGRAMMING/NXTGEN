@@ -8,15 +8,27 @@ export interface IssueCreatedData {
   authorTag: string;
   authorAvatarUrl: string;
   messageLink: string;
+  body?: string;
 }
 
 export function createIssueCreatedEmbed(data: IssueCreatedData): EmbedBuilder {
-  return new EmbedBuilder()
+  const embed = new EmbedBuilder()
     .setColor(0x238636)
     .setAuthor({ name: data.authorTag, iconURL: data.authorAvatarUrl })
     .setTitle(`[#${data.issueNumber}] ${data.title}`)
     .setURL(data.url)
-    .addFields({ name: "Source", value: `[Discord message](${data.messageLink})` })
     .setFooter({ text: data.repoFullName })
     .setTimestamp();
+
+  if (data.body) {
+    const truncatedBody = data.body.length > 500 ? data.body.slice(0, 497) + "..." : data.body;
+    embed.setDescription(truncatedBody);
+  }
+
+  if (data.messageLink) {
+    const cleanLink = data.messageLink.trim();
+    embed.addFields({ name: "Source", value: `[Discord message](${cleanLink})` });
+  }
+
+  return embed;
 }

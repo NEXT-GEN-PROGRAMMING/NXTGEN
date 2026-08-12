@@ -204,6 +204,7 @@ ${quotedContent}Created from Discord by ${interaction.user.username}${messageLin
       authorTag: interaction.user.tag,
       authorAvatarUrl: interaction.user.displayAvatarURL(),
       messageLink,
+      body,
     });
 
     await interaction.editReply({ content: `Feature request created: ${issue.url}` });
