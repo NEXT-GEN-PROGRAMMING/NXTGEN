@@ -8,6 +8,22 @@ export const githubWebhookConfigs = pgTable("github_webhook_configs", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const githubPrMessages = pgTable(
+  "github_pr_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    prNumber: integer("pr_number").notNull(),
+    repoFullName: text("repo_full_name").notNull(),
+    channelId: text("channel_id").notNull(),
+    messageId: text("message_id").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    unq: unique().on(t.prNumber, t.repoFullName, t.channelId),
+  }),
+);
+
 export const githubPullRequests = pgTable(
   "github_pull_requests",
   {

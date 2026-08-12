@@ -36,6 +36,13 @@
       "when": 1786474127339,
       "tag": "0004_light_jean_grey",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786479535721,
+      "tag": "0005_parched_rick_jones",
+      "breakpoints": true
     }
   ]
 }

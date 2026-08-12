@@ -221,3 +221,17 @@ export function createPRLabeledEmbed(data: PREventData & { label: string }): Emb
       [`**${data.senderLogin}** added label **${data.label}**`, branchLine(data)].join("\n"),
     );
 }
+
+export function createPRSynchronizedEmbed(data: PREventData): EmbedBuilder {
+  const embed = baseEmbed(data, 0x238636)
+    .setAuthor({ name: data.senderLogin, iconURL: data.senderAvatarUrl })
+    .setDescription(
+      [`**Updated** by **${data.senderLogin}**`, branchLine(data), statsLine(data)].join("\n"),
+    );
+
+  // Add an explicit updated indicator to the footer
+  const currentFooter = embed.data.footer?.text ?? data.repoFullName;
+  embed.setFooter({ text: `${currentFooter} • 🔄 Updated just now` });
+
+  return embed;
+}

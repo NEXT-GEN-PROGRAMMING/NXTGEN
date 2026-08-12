@@ -5,6 +5,14 @@ This document outlines the system architecture for various modules and features 
 ## GitHub OAuth Flow
 
 ```mermaid
+---
+config:
+  flowchart:
+    nodeSpacing: 80
+    rankSpacing: 100
+    curve: basis
+---
+
 flowchart TD
     USER(["<b>User</b><br/>Discord Client"])
     BOT["<b>Discord Bot</b><br/>/github-link command"]
@@ -122,3 +130,4 @@ flowchart TD
 5. **BullMQ Queue:** The route (`src/features/github/webhooks/route.ts`) verifies the signature, enqueues the payload into a Redis-backed BullMQ queue (`src/features/github/queue.ts`), and returns `200` to GitHub instantly.
 6. **BullMQ Worker:** `src/features/github/workers/pr.worker.ts` picks up jobs asynchronously (3 attempts, exponential backoff) and processes them via `src/features/github/services/pr-handler.ts`.
 7. **Octokit Enrichment:** `GitHubService` (`src/features/github/services/github.service.ts`) fetches CI check statuses (`checks.listForRef`) and review history (`pulls.listReviews`) to enrich the webhook payload. Enrichment is best-effort — on API failure the worker falls back to the raw webhook payload.
+8. **In-place Embed Sync:** When a `pull_request.synchronize` event occurs (e.g. new commits pushed), the bot queries `github_pr_messages` for the original Discord message IDs and seamlessly updates the original embeds in-place with refreshed CI checks and an updated footer, rather than spamming the channel with new messages.

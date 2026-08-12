@@ -1,4 +1,6 @@
-import type { EmbedBuilder } from "discord.js";
+import type { EmbedBuilder, TextChannel } from "discord.js";
+import { and, eq } from "drizzle-orm";
+import { client } from "@/core/client.js";
 import { db } from "@/core/database.js";
 import { logger } from "@/core/logger.js";
 import {
@@ -7,10 +9,13 @@ import {
   createPRMergedEmbed,
   createPROpenedEmbed,
   createPRReviewRequestedEmbed,
+  createPRSynchronizedEmbed,
   type PREventData,
 } from "@/features/github/embeds/pr-embed.js";
-import { githubPullRequests } from "@/features/github/schema.js";
+
+import { githubPrMessages, githubPullRequests } from "@/features/github/schema.js";
 import { sendEmbedToConfiguredChannels } from "@/features/github/services/announcer.js";
+
 import {
   type CheckRunSummary,
   GitHubService,
@@ -186,6 +191,9 @@ export async function handlePullRequestEvent(event: GitHubPRWebhookPayload): Pro
         embed = createPRLabeledEmbed({ ...prData, label: event.label.name });
       }
       break;
+    case "synchronize":
+      embed = createPRSynchronizedEmbed(prData);
+      break;
     default:
       logger.debug({ action: event.action }, "Unhandled PR action");
       return;
@@ -193,5 +201,41 @@ export async function handlePullRequestEvent(event: GitHubPRWebhookPayload): Pro
 
   if (!embed) return;
 
-  await sendEmbedToConfiguredChannels(embed);
+  if (event.action === "synchronize") {
+    // Find all previously sent messages for this PR
+    const messages = await db
+      .select()
+      .from(githubPrMessages)
+      .where(
+        and(
+          eq(githubPrMessages.prNumber, prData.prNumber),
+          eq(githubPrMessages.repoFullName, prData.repoFullName),
+        ),
+      );
+
+    logger.info({ messageCount: messages.length }, "Updating existing PR embeds for synchronize");
+
+    for (const msg of messages) {
+      try {
+        const channel = (await client.channels.fetch(msg.channelId)) as TextChannel | null;
+        if (channel?.isTextBased()) {
+          const discordMsg = await channel.messages.fetch(msg.messageId);
+          if (discordMsg) {
+            await discordMsg.edit({ embeds: [embed] });
+          }
+        }
+      } catch (err) {
+        logger.error(
+          { err, channelId: msg.channelId, messageId: msg.messageId },
+          "Failed to edit embed for synchronize",
+        );
+      }
+    }
+    return;
+  }
+
+  await sendEmbedToConfiguredChannels(embed, {
+    prNumber: prData.prNumber,
+    repoFullName: prData.repoFullName,
+  });
 }

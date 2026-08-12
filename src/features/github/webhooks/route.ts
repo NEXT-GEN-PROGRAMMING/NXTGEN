@@ -5,7 +5,7 @@ import { verifyGitHubSignature } from "@/features/github/webhooks/verify.js";
 
 export const githubWebhookRoute = new Hono();
 
-const SUPPORTED_ACTIONS = ["opened", "closed", "labeled", "review_requested"];
+const SUPPORTED_ACTIONS = ["opened", "closed", "labeled", "review_requested", "synchronize"];
 
 githubWebhookRoute.post("/", async (c) => {
   const signature = c.req.header("x-hub-signature-256");

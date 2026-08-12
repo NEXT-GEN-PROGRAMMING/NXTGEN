@@ -58,6 +58,7 @@ Everything is written in **TypeScript**, backed by **PostgreSQL** for persistenc
 ### GitHub PR Tracking *(v0.1 — initial release)*
 
 - **Real-time PR notifications** — Receive instant Discord embeds when pull requests are opened, closed, merged, reviewed, or updated.
+- **In-place Embed Sync** — When new commits are pushed to a PR, the bot silently updates the original embed in-place instead of spamming the channel.
 - **Per-channel configuration** — Link specific GitHub repositories to specific Discord channels via slash commands.
 - **Rich status embeds** — See PR title, author, labels, review status, CI checks, and merge state at a glance.
 - **Webhook-first architecture** — GitHub pushes events to the bot; no polling, no delays.
