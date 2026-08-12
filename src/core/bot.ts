@@ -1,4 +1,6 @@
 import { Events } from "discord.js";
+import { handleBugModal } from "@/commands/github/report-bug.js";
+import { handleFeatureModal } from "@/commands/github/request-feature.js";
 import { commands } from "@/commands/handler.js";
 import type { Command, MessageCommand } from "@/commands/types.js";
 import { env } from "@/config/env.js";
@@ -11,6 +13,15 @@ client.once(Events.ClientReady, (c) => {
 
 // Route incoming slash command and message context menu interactions to their handlers
 client.on(Events.InteractionCreate, async (interaction) => {
+  if (interaction.isModalSubmit()) {
+    if (interaction.customId.startsWith("bug_modal_")) {
+      await handleBugModal(interaction);
+    } else if (interaction.customId.startsWith("feature_modal_")) {
+      await handleFeatureModal(interaction);
+    }
+    return;
+  }
+
   if (!interaction.isChatInputCommand() && !interaction.isMessageContextMenuCommand()) {
     return;
   }
