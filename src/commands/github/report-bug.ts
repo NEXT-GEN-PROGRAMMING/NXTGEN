@@ -5,6 +5,8 @@ import {
   type MessageContextMenuCommandInteraction,
   ModalBuilder,
   type ModalSubmitInteraction,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
   TextInputBuilder,
   TextInputStyle,
 } from "discord.js";
@@ -21,8 +23,10 @@ export const data = new ContextMenuCommandBuilder()
   .setName("Report Bug")
   .setType(ApplicationCommandType.Message);
 
-export function buildBugModal(messageId: string): ModalBuilder {
-  const modal = new ModalBuilder().setCustomId(`bug_modal_${messageId}`).setTitle("Report Bug");
+export function buildBugModal(messageId: string, repoFullName: string): ModalBuilder {
+  const modal = new ModalBuilder()
+    .setCustomId(`bug_modal_${messageId}_${repoFullName}`)
+    .setTitle("Report Bug");
 
   modal.addComponents(
     new ActionRowBuilder<TextInputBuilder>().addComponents(
@@ -64,12 +68,40 @@ export function buildBugModal(messageId: string): ModalBuilder {
   return modal;
 }
 
-export async function execute(interaction: MessageContextMenuCommandInteraction): Promise<void> {
-  const [owner, repo] = (env.GITHUB_ISSUES_REPO ?? "").split("/");
-  if (!owner || !repo) {
+export async function sendBugRepoSelect(
+  interaction: MessageContextMenuCommandInteraction | import("discord.js").ButtonInteraction,
+  messageId: string,
+  repos: string[],
+): Promise<void> {
+  const select = new StringSelectMenuBuilder()
+    .setCustomId(`select_repo_bug_${messageId}`)
+    .setPlaceholder("Select a repository")
+    .addOptions(repos.map((r) => new StringSelectMenuOptionBuilder().setLabel(r).setValue(r)));
+
+  const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
+
+  if (interaction.isMessageContextMenuCommand()) {
     await interaction.reply({
-      content:
-        "`GITHUB_ISSUES_REPO` must be set as `owner/repo` (e.g. `NEXT-GEN-PROGRAMMING/NXTGEN`).",
+      content: "Which repository would you like to report this bug to?",
+      components: [row],
+      ephemeral: true,
+    });
+  } else {
+    await interaction.update({
+      content: "Which repository would you like to report this bug to?",
+      components: [row],
+    });
+  }
+}
+
+export async function execute(interaction: MessageContextMenuCommandInteraction): Promise<void> {
+  const repos = (env.GITHUB_ISSUES_REPO ?? "")
+    .split(",")
+    .map((r) => r.trim())
+    .filter((r) => r.length > 0);
+  if (repos.length === 0) {
+    await interaction.reply({
+      content: "`GITHUB_ISSUES_REPO` must be set in your `.env` (e.g. `owner/repo1,owner/repo2`).",
       ephemeral: true,
     });
     return;
@@ -88,21 +120,28 @@ export async function execute(interaction: MessageContextMenuCommandInteraction)
     return;
   }
 
-  const modal = buildBugModal(interaction.targetMessage.id);
-  await interaction.showModal(modal);
+  if (repos.length > 1) {
+    await sendBugRepoSelect(interaction, interaction.targetMessage.id, repos);
+  } else {
+    const modal = buildBugModal(interaction.targetMessage.id, repos[0]);
+    await interaction.showModal(modal);
+  }
 }
 
 export async function handleBugModal(interaction: ModalSubmitInteraction): Promise<void> {
   await interaction.deferReply({ ephemeral: true });
 
-  const messageId = interaction.customId.replace("bug_modal_", "");
+  const customIdParts = interaction.customId.split("_");
+  const messageId = customIdParts[2];
+  const repoFullName = customIdParts.slice(3).join("_"); // in case repo has underscores, though unlikely
+
+  const [owner, repo] = repoFullName.split("/");
+
   const title = interaction.fields.getTextInputValue("title");
   const description = interaction.fields.getTextInputValue("description");
   const reproduce = interaction.fields.getTextInputValue("reproduce");
   const expected = interaction.fields.getTextInputValue("expected");
   const environment = interaction.fields.getTextInputValue("environment");
-
-  const [owner, repo] = (env.GITHUB_ISSUES_REPO ?? "").split("/");
 
   const [link] = await db
     .select()

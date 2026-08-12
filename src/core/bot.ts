@@ -1,6 +1,10 @@
 import { Events } from "discord.js";
-import { buildBugModal, handleBugModal } from "@/commands/github/report-bug.js";
-import { buildFeatureModal, handleFeatureModal } from "@/commands/github/request-feature.js";
+import { buildBugModal, handleBugModal, sendBugRepoSelect } from "@/commands/github/report-bug.js";
+import {
+  buildFeatureModal,
+  handleFeatureModal,
+  sendFeatureRepoSelect,
+} from "@/commands/github/request-feature.js";
 import { commands } from "@/commands/handler.js";
 import type { Command, MessageCommand } from "@/commands/types.js";
 import { env } from "@/config/env.js";
@@ -23,14 +27,47 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 
   if (interaction.isButton()) {
+    const repos = (env.GITHUB_ISSUES_REPO ?? "")
+      .split(",")
+      .map((r) => r.trim())
+      .filter((r) => r.length > 0);
+    if (repos.length === 0) {
+      await interaction.reply({ content: "No GitHub repositories configured.", ephemeral: true });
+      return;
+    }
+
     if (interaction.customId.startsWith("btn_bug_modal_")) {
       const messageId = interaction.customId.replace("btn_bug_modal_", "");
-      const modal = buildBugModal(messageId);
-      await interaction.showModal(modal);
+      if (repos.length > 1) {
+        await sendBugRepoSelect(interaction, messageId, repos);
+      } else {
+        const modal = buildBugModal(messageId, repos[0]);
+        await interaction.showModal(modal);
+      }
       return;
     } else if (interaction.customId.startsWith("btn_feature_modal_")) {
       const messageId = interaction.customId.replace("btn_feature_modal_", "");
-      const modal = buildFeatureModal(messageId);
+      if (repos.length > 1) {
+        await sendFeatureRepoSelect(interaction, messageId, repos);
+      } else {
+        const modal = buildFeatureModal(messageId, repos[0]);
+        await interaction.showModal(modal);
+      }
+      return;
+    }
+  }
+
+  if (interaction.isStringSelectMenu()) {
+    if (interaction.customId.startsWith("select_repo_bug_")) {
+      const messageId = interaction.customId.replace("select_repo_bug_", "");
+      const selectedRepo = interaction.values[0];
+      const modal = buildBugModal(messageId, selectedRepo);
+      await interaction.showModal(modal);
+      return;
+    } else if (interaction.customId.startsWith("select_repo_feature_")) {
+      const messageId = interaction.customId.replace("select_repo_feature_", "");
+      const selectedRepo = interaction.values[0];
+      const modal = buildFeatureModal(messageId, selectedRepo);
       await interaction.showModal(modal);
       return;
     }

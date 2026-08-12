@@ -5,6 +5,8 @@ import {
   type MessageContextMenuCommandInteraction,
   ModalBuilder,
   type ModalSubmitInteraction,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
   TextInputBuilder,
   TextInputStyle,
 } from "discord.js";
@@ -21,9 +23,9 @@ export const data = new ContextMenuCommandBuilder()
   .setName("Request Feature")
   .setType(ApplicationCommandType.Message);
 
-export function buildFeatureModal(messageId: string): ModalBuilder {
+export function buildFeatureModal(messageId: string, repoFullName: string): ModalBuilder {
   const modal = new ModalBuilder()
-    .setCustomId(`feature_modal_${messageId}`)
+    .setCustomId(`feature_modal_${messageId}_${repoFullName}`)
     .setTitle("Request Feature");
 
   modal.addComponents(
@@ -66,12 +68,40 @@ export function buildFeatureModal(messageId: string): ModalBuilder {
   return modal;
 }
 
-export async function execute(interaction: MessageContextMenuCommandInteraction): Promise<void> {
-  const [owner, repo] = (env.GITHUB_ISSUES_REPO ?? "").split("/");
-  if (!owner || !repo) {
+export async function sendFeatureRepoSelect(
+  interaction: MessageContextMenuCommandInteraction | import("discord.js").ButtonInteraction,
+  messageId: string,
+  repos: string[],
+): Promise<void> {
+  const select = new StringSelectMenuBuilder()
+    .setCustomId(`select_repo_feature_${messageId}`)
+    .setPlaceholder("Select a repository")
+    .addOptions(repos.map((r) => new StringSelectMenuOptionBuilder().setLabel(r).setValue(r)));
+
+  const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
+
+  if (interaction.isMessageContextMenuCommand()) {
     await interaction.reply({
-      content:
-        "`GITHUB_ISSUES_REPO` must be set as `owner/repo` (e.g. `NEXT-GEN-PROGRAMMING/NXTGEN`).",
+      content: "Which repository would you like to request this feature in?",
+      components: [row],
+      ephemeral: true,
+    });
+  } else {
+    await interaction.update({
+      content: "Which repository would you like to request this feature in?",
+      components: [row],
+    });
+  }
+}
+
+export async function execute(interaction: MessageContextMenuCommandInteraction): Promise<void> {
+  const repos = (env.GITHUB_ISSUES_REPO ?? "")
+    .split(",")
+    .map((r) => r.trim())
+    .filter((r) => r.length > 0);
+  if (repos.length === 0) {
+    await interaction.reply({
+      content: "`GITHUB_ISSUES_REPO` must be set in your `.env` (e.g. `owner/repo1,owner/repo2`).",
       ephemeral: true,
     });
     return;
@@ -90,14 +120,23 @@ export async function execute(interaction: MessageContextMenuCommandInteraction)
     return;
   }
 
-  const modal = buildFeatureModal(interaction.targetMessage.id);
-  await interaction.showModal(modal);
+  if (repos.length > 1) {
+    await sendFeatureRepoSelect(interaction, interaction.targetMessage.id, repos);
+  } else {
+    const modal = buildFeatureModal(interaction.targetMessage.id, repos[0]);
+    await interaction.showModal(modal);
+  }
 }
 
 export async function handleFeatureModal(interaction: ModalSubmitInteraction): Promise<void> {
   await interaction.deferReply({ ephemeral: true });
 
-  const messageId = interaction.customId.replace("feature_modal_", "");
+  const customIdParts = interaction.customId.split("_");
+  const messageId = customIdParts[2];
+  const repoFullName = customIdParts.slice(3).join("_"); // in case repo has underscores, though unlikely
+
+  const [owner, repo] = repoFullName.split("/");
+
   const title = interaction.fields.getTextInputValue("title");
   const problem = interaction.fields.getTextInputValue("problem");
   const solution = interaction.fields.getTextInputValue("solution");
@@ -111,8 +150,6 @@ export async function handleFeatureModal(interaction: ModalSubmitInteraction): P
   try {
     contextInfo = interaction.fields.getTextInputValue("context");
   } catch {}
-
-  const [owner, repo] = (env.GITHUB_ISSUES_REPO ?? "").split("/");
 
   const [link] = await db
     .select()
