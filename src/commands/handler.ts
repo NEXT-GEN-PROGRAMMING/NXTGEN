@@ -1,4 +1,5 @@
 import { Collection, REST, Routes } from "discord.js";
+import * as createIssue from "@/commands/github/create-issue.js";
 import * as prLink from "@/commands/github/github-link.js";
 import * as prSearch from "@/commands/github/pr-search.js";
 import * as prStats from "@/commands/github/pr-stats.js";
@@ -23,6 +24,7 @@ const allCommands: (Command | MessageCommand)[] = [
   help,
   reportBug,
   requestFeature,
+  createIssue,
 ];
 
 for (const command of allCommands) {

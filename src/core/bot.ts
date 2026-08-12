@@ -1,6 +1,6 @@
 import { Events } from "discord.js";
-import { handleBugModal } from "@/commands/github/report-bug.js";
-import { handleFeatureModal } from "@/commands/github/request-feature.js";
+import { buildBugModal, handleBugModal } from "@/commands/github/report-bug.js";
+import { buildFeatureModal, handleFeatureModal } from "@/commands/github/request-feature.js";
 import { commands } from "@/commands/handler.js";
 import type { Command, MessageCommand } from "@/commands/types.js";
 import { env } from "@/config/env.js";
@@ -20,6 +20,20 @@ client.on(Events.InteractionCreate, async (interaction) => {
       await handleFeatureModal(interaction);
     }
     return;
+  }
+
+  if (interaction.isButton()) {
+    if (interaction.customId.startsWith("btn_bug_modal_")) {
+      const messageId = interaction.customId.replace("btn_bug_modal_", "");
+      const modal = buildBugModal(messageId);
+      await interaction.showModal(modal);
+      return;
+    } else if (interaction.customId.startsWith("btn_feature_modal_")) {
+      const messageId = interaction.customId.replace("btn_feature_modal_", "");
+      const modal = buildFeatureModal(messageId);
+      await interaction.showModal(modal);
+      return;
+    }
   }
 
   if (!interaction.isChatInputCommand() && !interaction.isMessageContextMenuCommand()) {

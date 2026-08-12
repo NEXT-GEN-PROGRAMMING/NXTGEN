@@ -21,33 +21,8 @@ export const data = new ContextMenuCommandBuilder()
   .setName("Report Bug")
   .setType(ApplicationCommandType.Message);
 
-export async function execute(interaction: MessageContextMenuCommandInteraction): Promise<void> {
-  const [owner, repo] = (env.GITHUB_ISSUES_REPO ?? "").split("/");
-  if (!owner || !repo) {
-    await interaction.reply({
-      content:
-        "`GITHUB_ISSUES_REPO` must be set as `owner/repo` (e.g. `NEXT-GEN-PROGRAMMING/NXTGEN`).",
-      ephemeral: true,
-    });
-    return;
-  }
-
-  const [link] = await db
-    .select()
-    .from(githubUserLinks)
-    .where(eq(githubUserLinks.discordId, interaction.user.id));
-
-  if (!link?.githubAccessToken) {
-    await interaction.reply({
-      content: "You must link your GitHub account first! Run /github-link to do so.",
-      ephemeral: true,
-    });
-    return;
-  }
-
-  const modal = new ModalBuilder()
-    .setCustomId(`bug_modal_${interaction.targetMessage.id}`)
-    .setTitle("Report Bug");
+export function buildBugModal(messageId: string): ModalBuilder {
+  const modal = new ModalBuilder().setCustomId(`bug_modal_${messageId}`).setTitle("Report Bug");
 
   modal.addComponents(
     new ActionRowBuilder<TextInputBuilder>().addComponents(
@@ -86,7 +61,34 @@ export async function execute(interaction: MessageContextMenuCommandInteraction)
         .setRequired(true),
     ),
   );
+  return modal;
+}
 
+export async function execute(interaction: MessageContextMenuCommandInteraction): Promise<void> {
+  const [owner, repo] = (env.GITHUB_ISSUES_REPO ?? "").split("/");
+  if (!owner || !repo) {
+    await interaction.reply({
+      content:
+        "`GITHUB_ISSUES_REPO` must be set as `owner/repo` (e.g. `NEXT-GEN-PROGRAMMING/NXTGEN`).",
+      ephemeral: true,
+    });
+    return;
+  }
+
+  const [link] = await db
+    .select()
+    .from(githubUserLinks)
+    .where(eq(githubUserLinks.discordId, interaction.user.id));
+
+  if (!link?.githubAccessToken) {
+    await interaction.reply({
+      content: "You must link your GitHub account first! Run /github-link to do so.",
+      ephemeral: true,
+    });
+    return;
+  }
+
+  const modal = buildBugModal(interaction.targetMessage.id);
   await interaction.showModal(modal);
 }
 
@@ -115,13 +117,13 @@ export async function handleBugModal(interaction: ModalSubmitInteraction): Promi
   let messageLink = "";
   let quotedContent = "";
   try {
-    if (interaction.channelId) {
+    if (messageId !== "none" && interaction.channelId) {
       const channel = await interaction.client.channels.fetch(interaction.channelId);
       if (channel?.isTextBased()) {
         const msg = await channel.messages.fetch(messageId);
         const content = msg.content.trim();
         quotedContent = content.length > 0 ? `> ${content}\n\n` : "";
-        messageLink = `https://discord.com/channels/${interaction.guildId}/${interaction.channelId}/${messageId}`;
+        messageLink = `\nhttps://discord.com/channels/${interaction.guildId}/${interaction.channelId}/${messageId}`;
       }
     }
   } catch (err) {
@@ -141,8 +143,7 @@ ${expected}
 ${environment}
 
 ---
-${quotedContent}Created from Discord by ${interaction.user.username}
-${messageLink}`;
+${quotedContent}Created from Discord by ${interaction.user.username}${messageLink}`;
 
   try {
     const service = new GitHubService(link.githubAccessToken);

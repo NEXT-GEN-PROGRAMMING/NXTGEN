@@ -21,32 +21,9 @@ export const data = new ContextMenuCommandBuilder()
   .setName("Request Feature")
   .setType(ApplicationCommandType.Message);
 
-export async function execute(interaction: MessageContextMenuCommandInteraction): Promise<void> {
-  const [owner, repo] = (env.GITHUB_ISSUES_REPO ?? "").split("/");
-  if (!owner || !repo) {
-    await interaction.reply({
-      content:
-        "`GITHUB_ISSUES_REPO` must be set as `owner/repo` (e.g. `NEXT-GEN-PROGRAMMING/NXTGEN`).",
-      ephemeral: true,
-    });
-    return;
-  }
-
-  const [link] = await db
-    .select()
-    .from(githubUserLinks)
-    .where(eq(githubUserLinks.discordId, interaction.user.id));
-
-  if (!link?.githubAccessToken) {
-    await interaction.reply({
-      content: "You must link your GitHub account first! Run /github-link to do so.",
-      ephemeral: true,
-    });
-    return;
-  }
-
+export function buildFeatureModal(messageId: string): ModalBuilder {
   const modal = new ModalBuilder()
-    .setCustomId(`feature_modal_${interaction.targetMessage.id}`)
+    .setCustomId(`feature_modal_${messageId}`)
     .setTitle("Request Feature");
 
   modal.addComponents(
@@ -86,7 +63,34 @@ export async function execute(interaction: MessageContextMenuCommandInteraction)
         .setRequired(false),
     ),
   );
+  return modal;
+}
 
+export async function execute(interaction: MessageContextMenuCommandInteraction): Promise<void> {
+  const [owner, repo] = (env.GITHUB_ISSUES_REPO ?? "").split("/");
+  if (!owner || !repo) {
+    await interaction.reply({
+      content:
+        "`GITHUB_ISSUES_REPO` must be set as `owner/repo` (e.g. `NEXT-GEN-PROGRAMMING/NXTGEN`).",
+      ephemeral: true,
+    });
+    return;
+  }
+
+  const [link] = await db
+    .select()
+    .from(githubUserLinks)
+    .where(eq(githubUserLinks.discordId, interaction.user.id));
+
+  if (!link?.githubAccessToken) {
+    await interaction.reply({
+      content: "You must link your GitHub account first! Run /github-link to do so.",
+      ephemeral: true,
+    });
+    return;
+  }
+
+  const modal = buildFeatureModal(interaction.targetMessage.id);
   await interaction.showModal(modal);
 }
 
@@ -123,13 +127,13 @@ export async function handleFeatureModal(interaction: ModalSubmitInteraction): P
   let messageLink = "";
   let quotedContent = "";
   try {
-    if (interaction.channelId) {
+    if (messageId !== "none" && interaction.channelId) {
       const channel = await interaction.client.channels.fetch(interaction.channelId);
       if (channel?.isTextBased()) {
         const msg = await channel.messages.fetch(messageId);
         const content = msg.content.trim();
         quotedContent = content.length > 0 ? `> ${content}\n\n` : "";
-        messageLink = `https://discord.com/channels/${interaction.guildId}/${interaction.channelId}/${messageId}`;
+        messageLink = `\nhttps://discord.com/channels/${interaction.guildId}/${interaction.channelId}/${messageId}`;
       }
     }
   } catch (err) {
@@ -149,8 +153,7 @@ ${alternatives || "*None*"}
 ${contextInfo || "*None*"}
 
 ---
-${quotedContent}Created from Discord by ${interaction.user.username}
-${messageLink}`;
+${quotedContent}Created from Discord by ${interaction.user.username}${messageLink}`;
 
   try {
     const service = new GitHubService(link.githubAccessToken);
