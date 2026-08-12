@@ -14,10 +14,12 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     .setTimestamp();
 
   for (const [, command] of commands) {
-    embed.addFields({
-      name: `/${command.data.name}`,
-      value: command.data.description,
-    });
+    if ("description" in command.data) {
+      embed.addFields({
+        name: `/${command.data.name}`,
+        value: command.data.description,
+      });
+    }
   }
 
   await interaction.reply({ embeds: [embed], ephemeral: true });
