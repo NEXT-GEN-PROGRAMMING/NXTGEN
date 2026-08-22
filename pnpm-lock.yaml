@@ -209,7 +209,7 @@ importers:
     dependencies:
       '@hono/node-server':
         specifier: ^2.1.0
-        version: 2.1.0(hono@4.13.1)
+        version: 2.1.0(hono@4.13.3)
       '@octokit/rest':
         specifier: ^22.0.1
         version: 22.0.1
@@ -229,8 +229,8 @@ importers:
         specifier: ^0.45.2
         version: 0.45.2(postgres@3.4.9)
       hono:
-        specifier: 4.13.1
-        version: 4.13.1
+        specifier: 4.13.3
+        version: 4.13.3
       ioredis:
         specifier: ^6.0.0
         version: 6.0.0
@@ -1501,8 +1501,8 @@ packages:
   help-me@5.0.0:
     resolution: {integrity: sha512-7xgomUX6ADmcYzFik0HzAxh/73YlKR9bmFzf51CZwR+b6YtzU2m0u49hQCqV6SvlqIqsaxovfwdvbnsw3b/zpg==}
 
-  hono@4.13.1:
-    resolution: {integrity: sha512-kdJoFVv2xmayw6cY09H7AbMJMt8Jn5jdlEdXsP7AGBdF2DIptVlKlOLKXP41yPip4/a3yQPv9gVcJYI8YY04dw==}
+  hono@4.13.3:
+    resolution: {integrity: sha512-r8AO2mYHoLxSHkgafNeC/BXyb2vWRxD3jem4Ts+ptav8oTG5FIRifAjuJEmZI4bSvvc2ns0GxmIYiZnHqN3mMw==}
     engines: {node: '>=16.9.0'}
 
   ignore@5.3.2:
@@ -2299,9 +2299,9 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
-  '@hono/node-server@2.1.0(hono@4.13.1)':
+  '@hono/node-server@2.1.0(hono@4.13.3)':
     dependencies:
-      hono: 4.13.1
+      hono: 4.13.3
 
   '@ioredis/commands@2.0.0': {}
 
@@ -2845,7 +2845,7 @@ snapshots:
 
   help-me@5.0.0: {}
 
-  hono@4.13.1: {}
+  hono@4.13.3: {}
 
   ignore@5.3.2: {}
 
